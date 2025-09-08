@@ -1,1 +1,6 @@
-streamlittensorflowopencv-pythonnumpypillowmatplotlib
+streamlit
+numpy
+opencv-python-headless
+tensorflow
+keras
+requests
