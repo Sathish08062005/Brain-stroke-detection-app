@@ -1,6 +1,7 @@
 streamlit
+tensorflow
 numpy
 opencv-python-headless
-tensorflow
-keras
+pillow
 requests
+gdown
