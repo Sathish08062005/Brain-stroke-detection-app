@@ -7,6 +7,8 @@ import os
 import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+from PIL import Image
+import pandas as pd
 
 # -------------------------
 # Page Config
@@ -75,6 +77,28 @@ def highlight_stroke_regions(image):
             cv2.drawContours(mask, [cnt], -1, (0, 0, 255), -1)
     highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
     return highlighted
+
+# -------------------------
+# NEW: Load TIFF dataset
+# -------------------------
+def load_tiff_images(base_path):
+    image_data_list = []
+    for root, dirs, files in os.walk(base_path):
+        for file_name in files:
+            if file_name.lower().endswith(".tif"):
+                file_path = os.path.join(root, file_name)
+                try:
+                    img = Image.open(file_path)
+                    img_array = np.array(img)
+                    image_info = {
+                        "file_name": file_name,
+                        "file_path": file_path,
+                        "image_shape": img_array.shape
+                    }
+                    image_data_list.append(image_info)
+                except Exception as e:
+                    print(f"Error loading {file_path}: {e}")
+    return pd.DataFrame(image_data_list)
 
 # -------------------------
 # Simple in-memory auth store + helpers
@@ -354,6 +378,27 @@ def render_user_app():
                     st.error("❌ Failed to send report to Telegram.")
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
+
+    # -------------------------
+    # NEW: Dataset Browser (TIFF)
+    # -------------------------
+    st.write("---")
+    st.header("📂 Browse Dataset Images (TIFF)")
+
+    base_path = r"C:\Users\sath7\OneDrive\Desktop\stroke_project\stroke_app\Data\image"
+    df = load_tiff_images(base_path)
+
+    if df.empty:
+        st.warning("⚠ No TIFF images found in dataset.")
+    else:
+        st.success(f"✅ Found {len(df)} TIFF images.")
+        st.dataframe(df)
+
+        selected_file = st.selectbox("Select an image to preview", df["file_name"])
+        if selected_file:
+            file_path = df[df["file_name"] == selected_file]["file_path"].values[0]
+            img = Image.open(file_path)
+            st.image(img, caption=selected_file, use_container_width=True)
 
     with st.sidebar:
         st.header("👤 Account")
