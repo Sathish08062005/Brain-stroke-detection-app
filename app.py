@@ -7,28 +7,15 @@ import os
 import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
-from datetime import datetime
 
 # -------------------------
 # Users file for persistence
 # -------------------------
 USERS_FILE = "users.json"
-APPOINTMENTS_FILE = "data/appointments.json"
 
 def save_users_to_file():
     with open(USERS_FILE, "w") as f:
         json.dump(st.session_state.users, f, indent=2)
-
-def load_appointments():
-    if not os.path.exists(APPOINTMENTS_FILE):
-        return {"requests": [], "approved": []}
-    with open(APPOINTMENTS_FILE, "r") as f:
-        return json.load(f)
-
-def save_appointments(data):
-    os.makedirs(os.path.dirname(APPOINTMENTS_FILE), exist_ok=True)
-    with open(APPOINTMENTS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
 
 # -------------------------
 # Page Config
@@ -49,7 +36,7 @@ st.markdown(
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -125,6 +112,14 @@ def ensure_state():
 ensure_state()
 
 # -------------------------
+# Appointment State
+# -------------------------
+def ensure_appointments_state():
+    if "appointments" not in st.session_state:
+        st.session_state.appointments = []
+ensure_appointments_state()
+
+# -------------------------
 # Auth functions
 # -------------------------
 def login(username, password):
@@ -182,6 +177,75 @@ def import_users_json(file_bytes):
         return False, f"Import failed: {e}"
 
 # -------------------------
+# Appointment Functions
+# -------------------------
+def render_appointment_request(patient_name, patient_age, patient_gender, patient_id, patient_contact, patient_address):
+    st.subheader("📅 Request Appointment")
+    doctor = st.selectbox("Select Doctor", ["Dr. Kumar", "Dr. Priya", "Dr. Ahmed", "Dr. John"])
+    date = st.date_input("Preferred Date")
+    time = st.time_input("Preferred Time")
+    reason = st.text_area("Reason for Appointment", "Routine check-up / Stroke consultation")
+
+    if st.button("📨 Send Appointment Request"):
+        request = {
+            "patient_name": patient_name,
+            "patient_age": patient_age,
+            "patient_gender": patient_gender,
+            "patient_id": patient_id,
+            "patient_contact": patient_contact,
+            "patient_address": patient_address,
+            "doctor": doctor,
+            "date": str(date),
+            "time": str(time),
+            "reason": reason,
+            "status": "Pending",
+        }
+        st.session_state.appointments.append(request)
+        st.success("✅ Appointment request sent to admin for approval!")
+
+def render_admin_appointments():
+    st.subheader("📅 Appointment Requests")
+    if not st.session_state.appointments:
+        st.info("No appointment requests yet.")
+        return
+
+    for idx, req in enumerate(st.session_state.appointments):
+        with st.expander(f"📌 {req['patient_name']} | Doctor: {req['doctor']} | {req['date']} {req['time']} | Status: {req['status']}"):
+            st.write(f"👤 Patient: {req['patient_name']} ({req['patient_age']} yrs, {req['patient_gender']})")
+            st.write(f"🆔 Patient ID: {req['patient_id']}")
+            st.write(f"📞 Contact: {req['patient_contact']}")
+            st.write(f"🏠 Address: {req['patient_address']}")
+            st.write(f"🧑‍⚕️ Doctor: {req['doctor']}")
+            st.write(f"📅 Date: {req['date']}")
+            st.write(f"⏰ Time: {req['time']}")
+            st.write(f"📝 Reason: {req['reason']}")
+            st.write(f"📌 Status: {req['status']}")
+
+            new_doctor = st.selectbox("Change Doctor", ["Dr. Kumar", "Dr. Priya", "Dr. Ahmed", "Dr. John"], index=0, key=f"doc_{idx}")
+            new_date = st.date_input("Change Date", key=f"date_{idx}")
+            new_time = st.time_input("Change Time", key=f"time_{idx}")
+
+            colA, colB, colC = st.columns(3)
+            with colA:
+                if st.button(f"✅ Approve {idx}"):
+                    req["status"] = "Approved"
+                    req["doctor"] = new_doctor
+                    req["date"] = str(new_date)
+                    req["time"] = str(new_time)
+                    st.success("Appointment Approved ✅")
+            with colB:
+                if st.button(f"❌ Reject {idx}"):
+                    req["status"] = "Rejected"
+                    st.error("Appointment Rejected ❌")
+            with colC:
+                if st.button(f"📝 Update {idx}"):
+                    req["doctor"] = new_doctor
+                    req["date"] = str(new_date)
+                    req["time"] = str(new_time)
+                    req["status"] = "Updated"
+                    st.info("Appointment Updated ✏️")
+
+# -------------------------
 # UI: Login
 # -------------------------
 def render_login():
@@ -200,52 +264,6 @@ def render_login():
         st.caption("No registration here. Users must be created by the admin.")
 
 # -------------------------
-# Doctor Appointment Features (Admin)
-# -------------------------
-def render_appointments_tab():
-    st.subheader("📅 Doctor Appointment Requests")
-    data = load_appointments()
-    
-    st.write("📝 Pending Requests:")
-    for i, req in enumerate(data["requests"]):
-        st.write(f"👤 {req['patient_name']} | {req['date']} {req['time']} | Doctor: {req['doctor']}")
-        col1, col2, col3, col4 = st.columns([1,1,2,2])
-        with col1:
-            if st.button(f"✅ Approve #{i+1}", key=f"approve_{i}"):
-                data["approved"].append(req)
-                del data["requests"][i]
-                save_appointments(data)
-                st.success("Appointment approved!")
-                st.experimental_rerun()
-        with col2:
-            if st.button(f"❌ Reject #{i+1}", key=f"reject_{i}"):
-                del data["requests"][i]
-                save_appointments(data)
-                st.success("Appointment rejected!")
-                st.experimental_rerun()
-        with col3:
-            new_date = st.date_input(f"Change Date #{i+1}", value=datetime.strptime(req['date'], "%Y-%m-%d"))
-            new_time = st.time_input(f"Change Time #{i+1}", value=datetime.strptime(req['time'], "%H:%M").time())
-            if st.button(f"📝 Update Date/Time #{i+1}", key=f"update_time_{i}"):
-                req['date'] = str(new_date)
-                req['time'] = str(new_time)
-                save_appointments(data)
-                st.success("Date & Time updated!")
-                st.experimental_rerun()
-        with col4:
-            new_doctor = st.text_input(f"Change Doctor #{i+1}", value=req['doctor'], key=f"doctor_{i}")
-            if st.button(f"📝 Update Doctor #{i+1}", key=f"update_doctor_{i}"):
-                req['doctor'] = new_doctor
-                save_appointments(data)
-                st.success("Doctor updated!")
-                st.experimental_rerun()
-
-    st.write("---")
-    st.write("📋 Approved Appointments:")
-    for i, appt in enumerate(data["approved"]):
-        st.write(f"✅ {appt['patient_name']} | {appt['date']} {appt['time']} | Doctor: {appt['doctor']}")
-
-# -------------------------
 # Admin Dashboard
 # -------------------------
 def render_admin_dashboard():
@@ -258,20 +276,183 @@ def render_admin_dashboard():
             logout()
             st.rerun()
 
-    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📅 Doctor Appointments"])
+    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📅 Appointments"])
 
-    # Render appointments tab as the last tab
+    with tabs[0]:
+        st.subheader("Create a new user")
+        new_username = st.text_input("New Username")
+        new_password = st.text_input("New Password", type="password")
+        role = st.selectbox("Role", ["user", "admin"], index=0)
+        if st.button("Create User"):
+            ok, msg = add_user(new_username, new_password, role)
+            (st.success if ok else st.error)(msg)
+
+    with tabs[1]:
+        st.subheader("All Users")
+        users = st.session_state.users
+        if users:
+            for uname, meta in users.items():
+                cols = st.columns([2, 1, 2, 2])
+                cols[0].write(f"{uname}")
+                cols[1].write(meta["role"])
+                with cols[2]:
+                    new_pw = st.text_input(f"New Password for {uname}", key=f"pw_{uname}", type="password")
+                    if st.button(f"Reset Password: {uname}", key=f"btn_reset_{uname}"):
+                        ok, msg = reset_password(uname, new_pw)
+                        (st.success if ok else st.error)(msg)
+                with cols[3]:
+                    if st.button(f"Delete {uname}", key=f"btn_del_{uname}"):
+                        ok, msg = delete_user(uname)
+                        (st.success if ok else st.error)(msg)
+        else:
+            st.info("No users yet.")
+
+    with tabs[2]:
+        st.subheader("Export / Import Users")
+        st.download_button(
+            "📥 Download users.json",
+            data=export_users_json(),
+            file_name="users.json",
+            mime="application/json",
+        )
+        up = st.file_uploader("Import users.json", type=["json"])
+        if up is not None:
+            ok, msg = import_users_json(up.read())
+            (st.success if ok else st.error)(msg)
+
+    with tabs[3]:
+        st.subheader("Telegram Settings")
+        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""))
+        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""))
+        if st.button("Save Telegram Settings"):
+            st.session_state.settings["BOT_TOKEN"] = bot_token
+            st.session_state.settings["CHAT_ID"] = chat_id
+            st.success("Saved Telegram settings.")
+
     with tabs[4]:
-        render_appointments_tab()
+        render_admin_appointments()
+
+    st.divider()
+    st.subheader("📝 Recently Sent Reports")
+    if st.session_state.report_log:
+        for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
+            st.write(
+                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
+            )
+    else:
+        st.caption("No reports yet.")
 
 # -------------------------
 # Stroke App Main UI
 # -------------------------
-# Your existing render_user_app code remains exactly unchanged
-# -------------------------
+def render_user_app():
+    st.title("🧠 Stroke Detection from CT/MRI Scans")
+    st.write("Upload a brain scan image to check stroke probability and view affected regions.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        patient_name = st.text_input("Patient Name", value="John Doe")
+        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45)
+        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+    with col2:
+        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345")
+        patient_contact = st.text_input("Patient Contact Number", value="9876543210")
+        patient_address = st.text_area("Patient Address", value="Chennai, India")
+
+    st.write("---")
+
+    st.sidebar.header("📞 Emergency Contact Settings")
+    relative_name = st.sidebar.text_input("Relative Name", value="Brother")
+    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243")
+
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"])
+
+    if uploaded_file is not None:
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, 1)
+        st.image(image, caption="🖼 Uploaded Scan", use_column_width=True)
+
+        stroke_prob, no_stroke_prob = classify_image(image)
+        stroke_percent = stroke_prob * 100
+        no_stroke_percent = no_stroke_prob * 100
+
+        st.subheader("🧾 Patient Information")
+        st.write(f"Name: {patient_name}")
+        st.write(f"Age: {patient_age}")
+        st.write(f"Gender: {patient_gender}")
+        st.write(f"Patient ID: {patient_id}")
+        st.write(f"Contact: {patient_contact}")
+        st.write(f"Address: {patient_address}")
+
+        st.subheader("🔍 Prediction Result:")
+        st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
+        st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
+
+        if stroke_percent > 80:
+            st.error("🔴 Immediate attention needed — very high stroke risk!")
+            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 60 < stroke_percent <= 80:
+            st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
+            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 50 < stroke_percent <= 60:
+            st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
+            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif no_stroke_percent > 90:
+            st.success("🟢 Very low stroke risk — scan looks healthy.")
+            st.info("⏱ Suggested Action: Routine monitoring only.")
+        elif 70 < no_stroke_percent <= 90:
+            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
+            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+
+        if stroke_prob > 0.5:
+            marked_image = highlight_stroke_regions(image)
+            st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
+
+        if st.button("💾 Save & Send to Telegram"):
+            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
+            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
+
+            message = (
+                "🧾 Patient Stroke Report\n\n"
+                f"👤 Name: {patient_name}\n"
+                f"🎂 Age: {patient_age}\n"
+                f"⚧ Gender: {patient_gender}\n"
+                f"🆔 Patient ID: {patient_id}\n"
+                f"📞 Contact: {patient_contact}\n"
+                f"🏠 Address: {patient_address}\n\n"
+                f"📊 Stroke Probability: {stroke_percent:.2f}%\n"
+                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%\n\n"
+                f"📅 Sent by: {st.session_state.username}\n"
+            )
+            st.session_state.report_log.append(
+                {
+                    "patient_name": patient_name,
+                    "stroke_percent": stroke_percent,
+                    "no_stroke_percent": no_stroke_percent,
+                    "by": st.session_state.username,
+                }
+            )
+            if BOT_TOKEN and CHAT_ID:
+                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                try:
+                    requests.post(url, data={"chat_id": CHAT_ID, "text": message})
+                    st.success("📤 Report sent to Telegram!")
+                except Exception as e:
+                    st.error(f"Failed to send to Telegram: {e}")
+            else:
+                st.warning("⚠ Telegram BOT_TOKEN and CHAT_ID not set.")
+
+    # Appointment Request Section
+    render_appointment_request(patient_name, patient_age, patient_gender, patient_id, patient_contact, patient_address)
 
 # -------------------------
-# App Router
+# Main
 # -------------------------
 if not st.session_state.logged_in:
     render_login()
@@ -279,4 +460,4 @@ else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
-        render_user_app()  # <-- exactly your original code
+        render_user_app()
