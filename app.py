@@ -141,6 +141,64 @@ def logout():
     st.session_state.username = None
     st.session_state.role = None
 
+def add_user(new_username, new_password, role="user"):
+    if not new_username or not new_password:
+        return False, "Username and password are required."
+    if new_username in st.session_state.users:
+        return False, "Username already exists."
+    st.session_state.users[new_username] = {"password": new_password, "role": role}
+    save_users_to_file()
+    return True, f"User '{new_username}' created."
+
+def delete_user(username):
+    if username == "Sathish":
+        return False, "Cannot delete the default admin."
+    if username not in st.session_state.users:
+        return False, "User not found."
+    del st.session_state.users[username]
+    save_users_to_file()
+    return True, f"User '{username}' deleted."
+
+def reset_password(username, new_password):
+    if username not in st.session_state.users:
+        return False, "User not found."
+    st.session_state.users[username]["password"] = new_password
+    save_users_to_file()
+    return True, f"Password reset for '{username}'."
+
+def export_users_json():
+    return json.dumps(st.session_state.users, indent=2)
+
+def import_users_json(file_bytes):
+    try:
+        data = json.loads(file_bytes.decode("utf-8"))
+        for k, v in data.items():
+            if not isinstance(v, dict) or "password" not in v or "role" not in v:
+                return False, "Invalid users JSON schema."
+        st.session_state.users = data
+        save_users_to_file()
+        return True, "Users imported."
+    except Exception as e:
+        return False, f"Import failed: {e}"
+
+# -------------------------
+# UI: Login
+# -------------------------
+def render_login():
+    st.title("🔐 Login Portal")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    colA, colB = st.columns([1, 1])
+    with colA:
+        if st.button("Login", use_container_width=True):
+            if login(username, password):
+                st.success("Login successful ✅")
+                st.rerun()
+            else:
+                st.error("❌ Invalid Username or Password")
+    with colB:
+        st.caption("No registration here. Users must be created by the admin.")
+
 # -------------------------
 # Doctor Appointment Features (Admin)
 # -------------------------
@@ -202,19 +260,23 @@ def render_admin_dashboard():
 
     tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📅 Doctor Appointments"])
 
-    # Existing tabs remain unchanged
+    # Render appointments tab as the last tab
     with tabs[4]:
         render_appointments_tab()
 
 # -------------------------
-# Login & App Router
+# Stroke App Main UI
+# -------------------------
+# Your existing render_user_app code remains exactly unchanged
+# -------------------------
+
+# -------------------------
+# App Router
 # -------------------------
 if not st.session_state.logged_in:
-    # Your existing render_login code here
-    pass
+    render_login()
 else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
-        # Your existing render_user_app code here
-        pass
+        render_user_app()  # <-- exactly your original code
