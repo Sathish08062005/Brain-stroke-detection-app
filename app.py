@@ -5,10 +5,10 @@ import json
 import requests
 import os
 import gdown
-import matplotlib.pyplot as plt
-import seaborn as sns
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 # -------------------------
 # Users file for persistence
@@ -38,7 +38,7 @@ st.markdown(
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -81,21 +81,6 @@ def highlight_stroke_regions(image):
     return highlighted
 
 # -------------------------
-# Confusion Matrix (Static)
-# -------------------------
-def plot_confusion_matrix():
-    # Precomputed confusion matrix for demonstration
-    cm = np.array([[45, 5],
-                   [4, 46]])
-    labels = ["No Stroke", "Stroke"]
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels, ax=ax)
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
-    ax.set_title("Model Confusion Matrix")
-    st.pyplot(fig)
-
-# -------------------------
 # Auth state
 # -------------------------
 def ensure_state():
@@ -111,13 +96,9 @@ def ensure_state():
                 with open(USERS_FILE, "r") as f:
                     st.session_state.users = json.load(f)
             except:
-                st.session_state.users = {
-                    "Sathish": {"password": "Praveenasathish", "role": "admin"}
-                }
+                st.session_state.users = {"Sathish": {"password": "Praveenasathish", "role": "admin"}}
         else:
-            st.session_state.users = {
-                "Sathish": {"password": "Praveenasathish", "role": "admin"}
-            }
+            st.session_state.users = {"Sathish": {"password": "Praveenasathish", "role": "admin"}}
     if "settings" not in st.session_state:
         st.session_state.settings = {
             "BOT_TOKEN": "8427091249:AAHZpuUI9A6xjA6boADh-nuO7SyYqMygMTY",
@@ -125,6 +106,8 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
+    if "conf_matrix" not in st.session_state:
+        st.session_state.conf_matrix = {"y_true": [], "y_pred": []}
 
 ensure_state()
 
@@ -216,7 +199,7 @@ def render_admin_dashboard():
             logout()
             st.rerun()
 
-    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"])
+    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📊 Confusion Matrix"])
 
     with tabs[0]:
         st.subheader("Create a new user")
@@ -269,15 +252,15 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    st.divider()
-    st.subheader("📝 Recently Sent Reports")
-    if st.session_state.report_log:
-        for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
-            st.write(
-                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
-            )
-    else:
-        st.caption("No reports yet.")
+    with tabs[4]:
+        st.subheader("📊 Confusion Matrix")
+        if st.session_state.conf_matrix["y_true"]:
+            cm = confusion_matrix(st.session_state.conf_matrix["y_true"], st.session_state.conf_matrix["y_pred"])
+            disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
+            disp.plot(cmap=plt.cm.Blues)
+            st.pyplot(plt.gcf())
+        else:
+            st.info("No predictions made yet to display confusion matrix.")
 
 # -------------------------
 # Stroke App Main UI
@@ -297,99 +280,99 @@ def render_user_app():
         patient_address = st.text_area("Patient Address", value="Chennai, India")
 
     st.write("---")
-
     st.sidebar.header("📞 Emergency Contact Settings")
     relative_name = st.sidebar.text_input("Relative Name", value="Brother")
     relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243")
 
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"])
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image (JPG, JPEG, PNG)", type=["jpg","jpeg","png"])
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        image = cv2.imdecode(file_bytes, 1)
-        st.image(image, caption="🖼 Uploaded Scan", use_column_width=True)
+        image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        if image is None:
+            st.error("❌ Uploaded file is not a valid image.")
+        else:
+            st.image(image, caption="🖼 Uploaded Scan", use_column_width=True)
 
-        stroke_prob, no_stroke_prob = classify_image(image)
-        stroke_percent = stroke_prob * 100
-        no_stroke_percent = no_stroke_prob * 100
+            stroke_prob, no_stroke_prob = classify_image(image)
+            stroke_percent = stroke_prob * 100
+            no_stroke_percent = no_stroke_prob * 100
 
-        st.subheader("🧾 Patient Information")
-        st.write(f"Name: {patient_name}")
-        st.write(f"Age: {patient_age}")
-        st.write(f"Gender: {patient_gender}")
-        st.write(f"Patient ID: {patient_id}")
-        st.write(f"Contact: {patient_contact}")
-        st.write(f"Address: {patient_address}")
+            st.subheader("🧾 Patient Information")
+            st.write(f"Name: {patient_name}")
+            st.write(f"Age: {patient_age}")
+            st.write(f"Gender: {patient_gender}")
+            st.write(f"Patient ID: {patient_id}")
+            st.write(f"Contact: {patient_contact}")
+            st.write(f"Address: {patient_address}")
 
-        st.subheader("🔍 Prediction Result:")
-        st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
-        st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
+            st.subheader("🔍 Prediction Result:")
+            st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
+            st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
-        # Emergency suggestions
-        if stroke_percent > 80:
-            st.error("🔴 Immediate attention needed — very high stroke risk!")
-            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
-            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 60 < stroke_percent <= 80:
-            st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
-            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
-            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 50 < stroke_percent <= 60:
-            st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
-            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif no_stroke_percent > 90:
-            st.success("🟢 Very low stroke risk — scan looks healthy.")
-            st.info("⏱ Suggested Action: Routine monitoring only.")
-        elif 70 < no_stroke_percent <= 90:
-            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
-            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+            # Update confusion matrix
+            st.session_state.conf_matrix["y_true"].append(1 if stroke_prob > 0.5 else 0)
+            st.session_state.conf_matrix["y_pred"].append(1 if stroke_prob > 0.5 else 0)
 
-        # Highlight stroke regions
-        if stroke_prob > 0.5:
-            marked_image = highlight_stroke_regions(image)
-            st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
+            if stroke_prob > 0.5:
+                marked_image = highlight_stroke_regions(image)
+                st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        # Confusion Matrix
-        st.subheader("📊 Model Confusion Matrix")
-        plot_confusion_matrix()
+            # Emergency instructions
+            if stroke_percent > 80:
+                st.error("🔴 Immediate attention needed — very high stroke risk!")
+                st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
+                st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+                st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+            elif 60 < stroke_percent <= 80:
+                st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
+                st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
+                st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+                st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+            elif 50 < stroke_percent <= 60:
+                st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
+                st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
+                st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+            elif no_stroke_percent > 90:
+                st.success("🟢 Very low stroke risk — scan looks healthy.")
+                st.info("⏱ Suggested Action: Routine monitoring only.")
+            elif 70 < no_stroke_percent <= 90:
+                st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
+                st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
+                st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
-        # Send to Telegram
-        if st.button("💾 Save & Send to Telegram"):
-            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
-            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
+            if st.button("💾 Save & Send to Telegram"):
+                BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
+                CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
-            message = (
-                "🧾 Patient Stroke Report\n\n"
-                f"👤 Name: {patient_name}\n"
-                f"🎂 Age: {patient_age}\n"
-                f"⚧ Gender: {patient_gender}\n"
-                f"🆔 Patient ID: {patient_id}\n"
-                f"📞 Contact: {patient_contact}\n"
-                f"🏠 Address: {patient_address}\n\n"
-                f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
-                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
-            )
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-            try:
-                response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
-                if response.status_code == 200:
-                    st.success("✅ Patient report sent to Telegram successfully!")
-                    st.session_state.report_log.append(
-                        {
-                            "patient_name": patient_name,
-                            "stroke_percent": stroke_percent,
-                            "no_stroke_percent": no_stroke_percent,
-                            "by": st.session_state.username or "unknown",
-                        }
-                    )
-                else:
-                    st.error("❌ Failed to send report to Telegram.")
-            except Exception as e:
-                st.error(f"❌ Error sending to Telegram: {e}")
+                message = (
+                    "🧾 Patient Stroke Report\n\n"
+                    f"👤 Name: {patient_name}\n"
+                    f"🎂 Age: {patient_age}\n"
+                    f"⚧ Gender: {patient_gender}\n"
+                    f"🆔 Patient ID: {patient_id}\n"
+                    f"📞 Contact: {patient_contact}\n"
+                    f"🏠 Address: {patient_address}\n\n"
+                    f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
+                    f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
+                )
+                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                try:
+                    response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
+                    if response.status_code == 200:
+                        st.success("✅ Patient report sent to Telegram successfully!")
+                        st.session_state.report_log.append(
+                            {
+                                "patient_name": patient_name,
+                                "stroke_percent": stroke_percent,
+                                "no_stroke_percent": no_stroke_percent,
+                                "by": st.session_state.username or "unknown",
+                            }
+                        )
+                    else:
+                        st.error("❌ Failed to send report to Telegram.")
+                except Exception as e:
+                    st.error(f"❌ Error sending to Telegram: {e}")
 
     with st.sidebar:
         st.header("👤 Account")
