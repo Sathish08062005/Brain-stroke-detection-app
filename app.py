@@ -5,8 +5,6 @@ import json
 import requests
 import os
 import gdown
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
@@ -63,15 +61,9 @@ def preprocess_image(image):
 
 def classify_image(image):
     processed = preprocess_image(image)
-    prediction = model.predict(processed)[0]
-    if len(prediction) == 1:
-        # Binary model
-        stroke_prob = float(prediction[0])
-        no_stroke_prob = 1 - stroke_prob
-    else:
-        # Multi-class
-        stroke_prob = float(prediction[1])
-        no_stroke_prob = float(prediction[0])
+    prediction = model.predict(processed)[0][0]
+    stroke_prob = float(prediction)
+    no_stroke_prob = 1 - stroke_prob
     return stroke_prob, no_stroke_prob
 
 def highlight_stroke_regions(image):
@@ -111,15 +103,11 @@ def ensure_state():
             }
     if "settings" not in st.session_state:
         st.session_state.settings = {
-            "BOT_TOKEN": "",
-            "CHAT_ID": "",
+            "BOT_TOKEN": "8427091249:AAHZpuUI9A6xjA6boADh-nuO7SyYqMygMTY",
+            "CHAT_ID": "6250672742",
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-    if "y_true" not in st.session_state:
-        st.session_state.y_true = []
-    if "y_pred" not in st.session_state:
-        st.session_state.y_pred = []
 
 ensure_state()
 
@@ -297,7 +285,7 @@ def render_user_app():
     relative_name = st.sidebar.text_input("Relative Name", value="Brother")
     relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243")
 
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"])
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -307,10 +295,6 @@ def render_user_app():
         stroke_prob, no_stroke_prob = classify_image(image)
         stroke_percent = stroke_prob * 100
         no_stroke_percent = no_stroke_prob * 100
-
-        # Store true/prediction for confusion matrix (for demonstration, using stroke_prob>0.5 as predicted label)
-        st.session_state.y_pred.append(int(stroke_prob > 0.5))
-        st.session_state.y_true.append(st.session_state.y_true[-1] if st.session_state.y_true else int(stroke_prob > 0.5))
 
         st.subheader("🧾 Patient Information")
         st.write(f"Name: {patient_name}")
@@ -324,19 +308,27 @@ def render_user_app():
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
-        if stroke_prob > 0.8:
+        if stroke_percent > 80:
             st.error("🔴 Immediate attention needed — very high stroke risk!")
             st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
             st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 0.6 < stroke_prob <= 0.8:
+        elif 60 < stroke_percent <= 80:
             st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
-        elif 0.5 < stroke_prob <= 0.6:
+            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 50 < stroke_percent <= 60:
             st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
-        elif no_stroke_prob > 0.9:
+            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif no_stroke_percent > 90:
             st.success("🟢 Very low stroke risk — scan looks healthy.")
-        elif 0.7 < no_stroke_prob <= 0.9:
-            st.info("🟡 Low stroke risk — but caution advised.")
+            st.info("⏱ Suggested Action: Routine monitoring only.")
+        elif 70 < no_stroke_percent <= 90:
+            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
+            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
         if stroke_prob > 0.5:
             marked_image = highlight_stroke_regions(image)
@@ -375,14 +367,69 @@ def render_user_app():
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
 
-        # Confusion Matrix
-        if st.session_state.y_true and st.session_state.y_pred:
-            st.subheader("📊 Confusion Matrix")
-            cm = confusion_matrix(st.session_state.y_true, st.session_state.y_pred)
-            disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
-            fig, ax = plt.subplots()
-            disp.plot(ax=ax)
-            st.pyplot(fig)
+    # -------------------------
+    # Confusion Matrix Section
+    # -------------------------
+    st.write("---")
+    st.subheader("📊 Test Set Accuracy & Confusion Matrix")
+
+    test_zip = st.file_uploader(
+        "Upload a ZIP file containing test images with labels (filename: label_0_or_1.jpg)", 
+        type=["zip"],
+        key="testzip"
+    )
+
+    if test_zip is not None:
+        import zipfile
+        from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+        import matplotlib.pyplot as plt
+        import tempfile
+
+        y_true = []
+        y_pred = []
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(test_zip, 'r') as zip_ref:
+                zip_ref.extractall(tmpdir)
+
+            import glob
+            files = glob.glob(f"{tmpdir}/*")
+            if not files:
+                st.error("No images found in ZIP.")
+            else:
+                st.info(f"{len(files)} test images found. Evaluating...")
+
+            for fpath in files:
+                fname = os.path.basename(fpath)
+                try:
+                    label = int(fname.split("_")[-1].split(".")[0])
+                except:
+                    st.warning(f"Skipping {fname}: cannot parse label")
+                    continue
+
+                img = cv2.imread(fpath)
+                if img is None:
+                    st.warning(f"Skipping {fname}: cannot read image")
+                    continue
+
+                sp, nsp = classify_image(img)
+                pred_label = 1 if sp > 0.5 else 0
+
+                y_true.append(label)
+                y_pred.append(pred_label)
+
+            if y_true and y_pred:
+                y_true = np.array(y_true)
+                y_pred = np.array(y_pred)
+                acc = np.sum(y_true == y_pred) / len(y_true) * 100
+                st.success(f"✅ Test Set Accuracy: {acc:.2f}%")
+
+                cm = confusion_matrix(y_true, y_pred)
+                st.write("Confusion Matrix:")
+                fig, ax = plt.subplots()
+                disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
+                disp.plot(ax=ax, cmap=plt.cm.Blues)
+                st.pyplot(fig)
 
     with st.sidebar:
         st.header("👤 Account")
