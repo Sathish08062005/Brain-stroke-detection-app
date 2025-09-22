@@ -257,7 +257,7 @@ def render_admin_dashboard():
     if st.session_state.report_log:
         for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
             st.write(
-                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
+                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | Confidence: {r.get('accuracy',''):.2f}% | By: {r.get('by','')}"
             )
     else:
         st.caption("No reports yet.")
@@ -296,6 +296,17 @@ def render_user_app():
         stroke_percent = stroke_prob * 100
         no_stroke_percent = no_stroke_prob * 100
 
+        # --- New: Accuracy / Confidence for this scan ---
+        accuracy_percent = max(stroke_percent, no_stroke_percent)
+        st.subheader("📈 Model Confidence / Accuracy for this scan")
+        st.write(f"Model Confidence: {accuracy_percent:.2f}%")
+        if accuracy_percent > 80:
+            st.success("✅ High confidence")
+        elif accuracy_percent > 60:
+            st.info("ℹ Moderate confidence")
+        else:
+            st.warning("⚠ Low confidence — review scan carefully")
+
         st.subheader("🧾 Patient Information")
         st.write(f"Name: {patient_name}")
         st.write(f"Age: {patient_age}")
@@ -308,6 +319,7 @@ def render_user_app():
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
+        # Emergency alerts
         if stroke_percent > 80:
             st.error("🔴 Immediate attention needed — very high stroke risk!")
             st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
@@ -330,10 +342,12 @@ def render_user_app():
             st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
+        # Highlight stroke regions
         if stroke_prob > 0.5:
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
+        # Save & send to Telegram
         if st.button("💾 Save & Send to Telegram"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
@@ -347,7 +361,8 @@ def render_user_app():
                 f"📞 Contact: {patient_contact}\n"
                 f"🏠 Address: {patient_address}\n\n"
                 f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
-                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
+                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%\n"
+                f"📈 Model Confidence: {accuracy_percent:.2f}%"
             )
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
             try:
@@ -359,6 +374,7 @@ def render_user_app():
                             "patient_name": patient_name,
                             "stroke_percent": stroke_percent,
                             "no_stroke_percent": no_stroke_percent,
+                            "accuracy": accuracy_percent,
                             "by": st.session_state.username or "unknown",
                         }
                     )
@@ -366,70 +382,6 @@ def render_user_app():
                     st.error("❌ Failed to send report to Telegram.")
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
-
-    # -------------------------
-    # Confusion Matrix Section
-    # -------------------------
-    st.write("---")
-    st.subheader("📊 Test Set Accuracy & Confusion Matrix")
-
-    test_zip = st.file_uploader(
-        "Upload a ZIP file containing test images with labels (filename: label_0_or_1.jpg)", 
-        type=["zip"],
-        key="testzip"
-    )
-
-    if test_zip is not None:
-        import zipfile
-        from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-        import matplotlib.pyplot as plt
-        import tempfile
-
-        y_true = []
-        y_pred = []
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with zipfile.ZipFile(test_zip, 'r') as zip_ref:
-                zip_ref.extractall(tmpdir)
-
-            import glob
-            files = glob.glob(f"{tmpdir}/*")
-            if not files:
-                st.error("No images found in ZIP.")
-            else:
-                st.info(f"{len(files)} test images found. Evaluating...")
-
-            for fpath in files:
-                fname = os.path.basename(fpath)
-                try:
-                    label = int(fname.split("_")[-1].split(".")[0])
-                except:
-                    st.warning(f"Skipping {fname}: cannot parse label")
-                    continue
-
-                img = cv2.imread(fpath)
-                if img is None:
-                    st.warning(f"Skipping {fname}: cannot read image")
-                    continue
-
-                sp, nsp = classify_image(img)
-                pred_label = 1 if sp > 0.5 else 0
-
-                y_true.append(label)
-                y_pred.append(pred_label)
-
-            if y_true and y_pred:
-                y_true = np.array(y_true)
-                y_pred = np.array(y_pred)
-                acc = np.sum(y_true == y_pred) / len(y_true) * 100
-                st.success(f"✅ Test Set Accuracy: {acc:.2f}%")
-
-                cm = confusion_matrix(y_true, y_pred)
-                st.write("Confusion Matrix:")
-                fig, ax = plt.subplots()
-                disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
-                disp.plot(ax=ax, cmap=plt.cm.Blues)
-                st.pyplot(fig)
 
     with st.sidebar:
         st.header("👤 Account")
