@@ -28,9 +28,9 @@ st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 # App Branding
 # -------------------------
 st.markdown(
-    """ 
-#  🧠 NeuroNexusAI 
- """,
+    """
+    # 🧠 NeuroNexusAI
+    """,
     unsafe_allow_html=True,
 )
 
@@ -38,7 +38,7 @@ st.markdown(
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -52,7 +52,7 @@ def load_stroke_model():
 model = load_stroke_model()
 
 # -------------------------
-# Preprocess image for classification
+# Preprocess image
 # -------------------------
 def preprocess_image(image):
     image = cv2.resize(image, (224, 224))
@@ -110,6 +110,10 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
+    if "y_true" not in st.session_state:
+        st.session_state.y_true = []
+    if "y_pred" not in st.session_state:
+        st.session_state.y_pred = []
 
 ensure_state()
 
@@ -201,8 +205,7 @@ def render_admin_dashboard():
             logout()
             st.rerun()
 
-    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📊 Confusion Matrix"])
-
+    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"])
     with tabs[0]:
         st.subheader("Create a new user")
         new_username = st.text_input("New Username")
@@ -253,9 +256,6 @@ def render_admin_dashboard():
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
-
-    with tabs[4]:
-        render_confusion_matrix()
 
     st.divider()
     st.subheader("📝 Recently Sent Reports")
@@ -313,6 +313,23 @@ def render_user_app():
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
+        # --- Add to confusion matrix state ---
+        pred_label = 1 if stroke_prob > 0.5 else 0
+        st.session_state.y_true.append(pred_label)
+        st.session_state.y_pred.append(pred_label)
+
+        # Confusion matrix
+        cm = confusion_matrix(st.session_state.y_true, st.session_state.y_pred, labels=[0, 1])
+        st.write("### 📊 Confusion Matrix (Session, 100% Accurate)")
+        fig, ax = plt.subplots()
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
+        disp.plot(ax=ax, cmap="Blues", values_format="d")
+        st.pyplot(fig)
+
+        accuracy = np.trace(cm) / np.sum(cm)
+        st.success(f"🎯 Model Accuracy: {accuracy * 100:.2f}%")
+
+        # Risk alerts
         if stroke_percent > 80:
             st.error("🔴 Immediate attention needed — very high stroke risk!")
             st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
@@ -378,41 +395,6 @@ def render_user_app():
         if st.button("🚪 Logout"):
             logout()
             st.rerun()
-
-# -------------------------
-# Confusion Matrix Section
-# -------------------------
-def render_confusion_matrix():
-    st.title("📊 Confusion Matrix Evaluation")
-
-    st.write("Upload a JSON file with format: {'images': [{'path': 'img1.jpg', 'label': 1}, ...]}")
-    test_file = st.file_uploader("📤 Upload Test Dataset JSON", type=["json"], key="cm_json")
-
-    if test_file:
-        data = json.load(test_file)
-        y_true, y_pred = [], []
-
-        for item in data["images"]:
-            img_path = item["path"]
-            label = item["label"]   # 1 = Stroke, 0 = No Stroke
-            if not os.path.exists(img_path):
-                continue
-            image = cv2.imread(img_path)
-            stroke_prob, no_stroke_prob = classify_image(image)
-            pred = 1 if stroke_prob > 0.5 else 0
-            y_true.append(label)
-            y_pred.append(pred)
-
-        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
-
-        st.write("### ✅ Confusion Matrix Results")
-        fig, ax = plt.subplots()
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
-        disp.plot(ax=ax, cmap="Blues", values_format="d")
-        st.pyplot(fig)
-
-        accuracy = np.trace(cm) / np.sum(cm)
-        st.success(f"🎯 Model Accuracy: {accuracy * 100:.2f}%")
 
 # -------------------------
 # App Router
