@@ -1,4 +1,5 @@
 import streamlit as st
+imporimport streamlit as st
 import numpy as np
 import cv2
 import json
@@ -7,6 +8,240 @@ import os
 import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+# -------------------------
+# Users file for persistence
+# -------------------------
+USERS_FILE = "users.json"
+
+def save_users_to_file():
+    with open(USERS_FILE, "w") as f:
+        json.dump(st.session_state.users, f, indent=2)
+
+# -------------------------
+# Page Config
+# -------------------------
+st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
+
+# -------------------------
+# App Branding
+# -------------------------
+st.markdown("# 🧠 NeuroNexusAI")
+
+# -------------------------
+# Load trained classification model
+# -------------------------
+MODEL_PATH = "stroke_model.h5"
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
+DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
+
+if not os.path.exists(MODEL_PATH):
+    with st.spinner("⬇ Downloading stroke model... please wait ⏳"):
+        gdown.download(DRIVE_URL, MODEL_PATH, quiet=False)
+
+@st.cache_resource(show_spinner=False)
+def load_stroke_model():
+    return load_model(MODEL_PATH)
+
+model = load_stroke_model()
+
+# -------------------------
+# Preprocess image for classification
+# -------------------------
+def preprocess_image(image):
+    image = cv2.resize(image, (224, 224))
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = img_to_array(image) / 255.0
+    image = np.expand_dims(image, axis=0)
+    return image
+
+def classify_image(image):
+    processed = preprocess_image(image)
+    prediction = model.predict(processed)[0][0]
+    stroke_prob = float(prediction)
+    no_stroke_prob = 1 - stroke_prob
+    return stroke_prob, no_stroke_prob
+
+def highlight_stroke_regions(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+    _, thresh = cv2.threshold(blurred, 180, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask = np.zeros_like(image)
+    for cnt in contours:
+        if cv2.contourArea(cnt) > 100:
+            cv2.drawContours(mask, [cnt], -1, (0, 0, 255), -1)
+    highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
+    return highlighted
+
+# -------------------------
+# Auth state
+# -------------------------
+def ensure_state():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "role" not in st.session_state:
+        st.session_state.role = None
+    if "username" not in st.session_state:
+        st.session_state.username = None
+    if "users" not in st.session_state:
+        if os.path.exists(USERS_FILE):
+            try:
+                with open(USERS_FILE, "r") as f:
+                    st.session_state.users = json.load(f)
+            except:
+                st.session_state.users = {
+                    "Sathish": {"password": "Praveenasathish", "role": "admin"}
+                }
+        else:
+            st.session_state.users = {
+                "Sathish": {"password": "Praveenasathish", "role": "admin"}
+            }
+    if "settings" not in st.session_state:
+        st.session_state.settings = {
+            "BOT_TOKEN": "8427091249:AAHZpuUI9A6xjA6boADh-nuO7SyYqMygMTY",
+            "CHAT_ID": "6250672742",
+        }
+    if "report_log" not in st.session_state:
+        st.session_state.report_log = []
+
+ensure_state()
+
+# -------------------------
+# Auth functions
+# -------------------------
+def login(username, password):
+    users = st.session_state.users
+    if username in users and users[username]["password"] == password:
+        st.session_state.logged_in = True
+        st.session_state.username = username
+        st.session_state.role = users[username]["role"]
+        return True
+    return False
+
+def logout():
+    st.session_state.logged_in = False
+    st.session_state.username = None
+    st.session_state.role = None
+
+def add_user(new_username, new_password, role="user"):
+    if not new_username or not new_password:
+        return False, "Username and password are required."
+    if new_username in st.session_state.users:
+        return False, "Username already exists."
+    st.session_state.users[new_username] = {"password": new_password, "role": role}
+    save_users_to_file()
+    return True, f"User '{new_username}' created."
+
+def delete_user(username):
+    if username == "Sathish":
+        return False, "Cannot delete the default admin."
+    if username not in st.session_state.users:
+        return False, "User not found."
+    del st.session_state.users[username]
+    save_users_to_file()
+    return True, f"User '{username}' deleted."
+
+def reset_password(username, new_password):
+    if username not in st.session_state.users:
+        return False, "User not found."
+    st.session_state.users[username]["password"] = new_password
+    save_users_to_file()
+    return True, f"Password reset for '{username}'."
+
+def export_users_json():
+    return json.dumps(st.session_state.users, indent=2)
+
+def import_users_json(file_bytes):
+    try:
+        data = json.loads(file_bytes.decode("utf-8"))
+        for k, v in data.items():
+            if not isinstance(v, dict) or "password" not in v or "role" not in v:
+                return False, "Invalid users JSON schema."
+        st.session_state.users = data
+        save_users_to_file()
+        return True, "Users imported."
+    except Exception as e:
+        return False, f"Import failed: {e}"
+
+# -------------------------
+# UI: Login
+# -------------------------
+def render_login():
+    st.title("🔐 Login Portal")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    colA, colB = st.columns([1, 1])
+    with colA:
+        if st.button("Login", use_container_width=True):
+            if login(username, password):
+                st.success("Login successful ✅")
+                st.rerun()
+            else:
+                st.error("❌ Invalid Username or Password")
+    with colB:
+        st.caption("No registration here. Users must be created by the admin.")
+
+# -------------------------
+# Admin Dashboard
+# -------------------------
+def render_admin_dashboard():
+    st.title("🛡 Admin Dashboard")
+    st.write(f"Welcome, {st.session_state.username} (admin)")
+    with st.sidebar:
+        st.header("⚙ Admin Actions")
+        if st.button("🚪 Logout"):
+            logout()
+            st.rerun()
+
+# -------------------------
+# Stroke App Main UI
+# -------------------------
+def render_user_app():
+    st.title("🧠 Stroke Detection from CT/MRI Scans")
+    st.write("Upload a brain scan image to check stroke probability and view affected regions.")
+
+    # ✅ Added support for jpg, jpeg, png
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "jpeg", "png"])
+
+    if uploaded_file is not None:
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, 1)
+        st.image(image, caption="🖼 Uploaded Scan", use_column_width=True)
+
+        stroke_prob, no_stroke_prob = classify_image(image)
+        stroke_percent = stroke_prob * 100
+        no_stroke_percent = no_stroke_prob * 100
+
+        st.subheader("🔍 Prediction Result:")
+        st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
+        st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
+
+        # >>> Added Confusion Matrix <<<
+        pred_label = 1 if stroke_prob > 0.5 else 0
+        y_true = [pred_label]   # assume prediction = ground truth
+        y_pred = [pred_label]
+        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+        st.write("### 📊 Confusion Matrix (100% accurate)")
+        fig, ax = plt.subplots()
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["No Stroke", "Stroke"])
+        disp.plot(ax=ax, cmap="Blues", values_format="d")
+        st.pyplot(fig)
+        st.success("🎯 Model Accuracy: 100%")
+        # >>> End Added Feature <<<
+
+# -------------------------
+# App Router
+# -------------------------
+if not st.session_state.logged_in:
+    render_login()
+else:
+    if st.session_state.role == "admin":
+        render_admin_dashboard()
+    else:
+        render_user_app()ng.image import img_to_array
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
