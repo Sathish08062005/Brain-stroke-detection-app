@@ -7,6 +7,7 @@ import os
 import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+import time  # added for unique button keys
 
 # -------------------------
 # Users file for persistence
@@ -36,7 +37,7 @@ st.markdown(
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -108,8 +109,6 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-
-    # 🆕 Added: Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
 
@@ -207,7 +206,7 @@ def render_admin_dashboard():
 
     with tabs[0]:
         st.subheader("Create a new user")
-        new_username = st.text_input("New Username", key="new_username")
+        new_username = st.text_input("New Username", key="new_user_username")
         new_password = st.text_input("New Password", type="password", key="new_user_password")
         role = st.selectbox("Role", ["user", "admin"], index=0, key="new_user_role")
         if st.button("Create User", key="create_user_btn"):
@@ -243,21 +242,20 @@ def render_admin_dashboard():
             mime="application/json",
             key="download_users_btn"
         )
-        up = st.file_uploader("Import users.json", type=["json"], key="import_users_uploader")
+        up = st.file_uploader("Import users.json", type=["json"], key="import_users_file")
         if up is not None:
             ok, msg = import_users_json(up.read())
             (st.success if ok else st.error)(msg)
 
     with tabs[3]:
         st.subheader("Telegram Settings")
-        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token")
-        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="chat_id")
+        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="telegram_bot_token")
+        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="telegram_chat_id")
         if st.button("Save Telegram Settings", key="save_telegram_btn"):
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # 🆕 Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -294,7 +292,7 @@ def render_user_app():
     relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
     relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
 
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="upload_scan")
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="user_upload_file")
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -343,7 +341,7 @@ def render_user_app():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
+        if st.button("💾 Save & Send to Telegram", key="send_telegram_report"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
@@ -377,7 +375,7 @@ def render_user_app():
                 st.error(f"❌ Error sending to Telegram: {e}")
 
     st.write("---")
-    if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
+    if st.button("🩺 Book Doctor Appointment", key="book_doctor_btn"):
         render_appointment_portal()
 
     with st.sidebar:
@@ -396,12 +394,12 @@ def render_appointment_portal():
 
     col1, col2 = st.columns(2)
     with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
-        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
-        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
+        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name_unique")
+        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile_unique")
+        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age_unique")
     with col2:
-        appointment_date = st.date_input("Appointment Date", key="appt_date")
-        appointment_time = st.time_input("Preferred Time", key="appt_time")
+        appointment_date = st.date_input("Appointment Date", key="appt_date_unique")
+        appointment_time = st.time_input("Preferred Time", key="appt_time_unique")
 
     doctor = st.selectbox(
         "Select Doctor",
@@ -411,10 +409,12 @@ def render_appointment_portal():
             "Dr. Kumar (Stroke Specialist, MIOT)",
             "Dr. Divya (CT Analysis Expert, Kauvery)",
         ],
-        key="appt_doctor",
+        key="appt_doctor_unique",
     )
 
-    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
+    unique_btn_key = f"send_appt_btn_{patient_name}_{int(time.time())}"
+
+    if st.button("📩 Send Appointment Request", key=unique_btn_key):
         appt = {
             "patient_name": patient_name,
             "mobile": patient_mobile,
