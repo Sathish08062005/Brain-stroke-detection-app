@@ -109,6 +109,10 @@ def ensure_state():
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
 
+    # 🆕 Added: Doctor appointment storage
+    if "appointments" not in st.session_state:
+        st.session_state.appointments = []
+
 ensure_state()
 
 # -------------------------
@@ -252,6 +256,10 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
+    # 🆕 Doctor Appointment Management (admin view)
+    with st.expander("🩺 View Doctor Appointments"):
+        render_admin_appointments()
+
     st.divider()
     st.subheader("📝 Recently Sent Reports")
     if st.session_state.report_log:
@@ -367,6 +375,10 @@ def render_user_app():
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
 
+    st.write("---")
+    if st.button("🩺 Book Doctor Appointment"):
+        render_appointment_portal()
+
     with st.sidebar:
         st.header("👤 Account")
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
@@ -375,7 +387,74 @@ def render_user_app():
             st.rerun()
 
 # -------------------------
-# App Router
+# Doctor Appointment Portal (User Side)
+# -------------------------
+def render_appointment_portal():
+    st.title("🩺 Doctor Appointment Booking")
+    st.write("Book an appointment with a neurologist or radiologist for consultation.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        patient_name = st.text_input("Patient Name", value="John Doe")
+        patient_mobile = st.text_input("Mobile Number", value="9876543210")
+        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45)
+    with col2:
+        appointment_date = st.date_input("Appointment Date")
+        appointment_time = st.time_input("Preferred Time")
+
+    doctor = st.selectbox(
+        "Select Doctor",
+        [
+            "Dr. Ramesh (Neurologist, Apollo)",
+            "Dr. Priya (Radiologist, Fortis)",
+            "Dr. Kumar (Stroke Specialist, MIOT)",
+            "Dr. Divya (CT Analysis Expert, Kauvery)",
+        ],
+    )
+
+    if st.button("📩 Send Appointment Request"):
+        appt = {
+            "patient_name": patient_name,
+            "mobile": patient_mobile,
+            "age": patient_age,
+            "date": str(appointment_date),
+            "time": str(appointment_time),
+            "doctor": doctor,
+            "status": "Pending",
+            "requested_by": st.session_state.username,
+        }
+        st.session_state.appointments.append(appt)
+        st.success("✅ Appointment request sent to Admin for approval.")
+
+# -------------------------
+# Admin: Manage Doctor Appointments
+# -------------------------
+def render_admin_appointments():
+    st.subheader("🩺 Doctor Appointment Requests")
+    if not st.session_state.appointments:
+        st.info("No appointment requests yet.")
+        return
+
+    for idx, appt in enumerate(st.session_state.appointments):
+        with st.container():
+            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
+            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
+            st.write(f"🗓 {appt['date']} at {appt['time']}")
+            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
+            st.write(f"📋 Status: {appt['status']}")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
+                    appt["status"] = "Approved"
+                    st.success(f"Appointment approved for {appt['patient_name']}")
+            with col2:
+                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
+                    appt["status"] = "Rejected"
+                    st.error(f"Appointment rejected for {appt['patient_name']}")
+            st.write("---")
+
+# -------------------------
+# Main Routing
 # -------------------------
 if not st.session_state.logged_in:
     render_login()
