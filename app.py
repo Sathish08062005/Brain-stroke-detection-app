@@ -7,7 +7,7 @@ import os
 import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
-import time  # added for unique button keys
+import time  # Needed for unique button key
 
 # -------------------------
 # Users file for persistence
@@ -37,7 +37,7 @@ st.markdown(
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -109,6 +109,8 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
+
+    # 🆕 Added: Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
 
@@ -176,11 +178,11 @@ def import_users_json(file_bytes):
 # -------------------------
 def render_login():
     st.title("🔐 Login Portal")
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     colA, colB = st.columns([1, 1])
     with colA:
-        if st.button("Login", use_container_width=True, key="login_btn"):
+        if st.button("Login", use_container_width=True):
             if login(username, password):
                 st.success("Login successful ✅")
                 st.rerun()
@@ -198,7 +200,7 @@ def render_admin_dashboard():
 
     with st.sidebar:
         st.header("⚙ Admin Actions")
-        if st.button("🚪 Logout", key="admin_logout_btn"):
+        if st.button("🚪 Logout"):
             logout()
             st.rerun()
 
@@ -206,10 +208,10 @@ def render_admin_dashboard():
 
     with tabs[0]:
         st.subheader("Create a new user")
-        new_username = st.text_input("New Username", key="new_user_username")
-        new_password = st.text_input("New Password", type="password", key="new_user_password")
-        role = st.selectbox("Role", ["user", "admin"], index=0, key="new_user_role")
-        if st.button("Create User", key="create_user_btn"):
+        new_username = st.text_input("New Username")
+        new_password = st.text_input("New Password", type="password")
+        role = st.selectbox("Role", ["user", "admin"], index=0)
+        if st.button("Create User"):
             ok, msg = add_user(new_username, new_password, role)
             (st.success if ok else st.error)(msg)
 
@@ -240,22 +242,22 @@ def render_admin_dashboard():
             data=export_users_json(),
             file_name="users.json",
             mime="application/json",
-            key="download_users_btn"
         )
-        up = st.file_uploader("Import users.json", type=["json"], key="import_users_file")
+        up = st.file_uploader("Import users.json", type=["json"])
         if up is not None:
             ok, msg = import_users_json(up.read())
             (st.success if ok else st.error)(msg)
 
     with tabs[3]:
         st.subheader("Telegram Settings")
-        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="telegram_bot_token")
-        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="telegram_chat_id")
-        if st.button("Save Telegram Settings", key="save_telegram_btn"):
+        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""))
+        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""))
+        if st.button("Save Telegram Settings"):
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
+    # 🆕 Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -278,21 +280,21 @@ def render_user_app():
 
     col1, col2 = st.columns(2)
     with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="user_patient_name")
-        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45, key="user_patient_age")
-        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="user_patient_gender")
+        patient_name = st.text_input("Patient Name", value="John Doe", key="scan_patient_name")
+        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45, key="scan_patient_age")
+        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="scan_patient_gender")
     with col2:
-        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345", key="user_patient_id")
-        patient_contact = st.text_input("Patient Contact Number", value="9876543210", key="user_patient_contact")
-        patient_address = st.text_area("Patient Address", value="Chennai, India", key="user_patient_address")
+        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345", key="scan_patient_id")
+        patient_contact = st.text_input("Patient Contact Number", value="9876543210", key="scan_patient_contact")
+        patient_address = st.text_area("Patient Address", value="Chennai, India", key="scan_patient_address")
 
     st.write("---")
 
     st.sidebar.header("📞 Emergency Contact Settings")
-    relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
-    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
+    relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="scan_relative_name")
+    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="scan_relative_number")
 
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="user_upload_file")
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="scan_uploaded_file")
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -341,7 +343,7 @@ def render_user_app():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        if st.button("💾 Save & Send to Telegram", key="send_telegram_report"):
+        if st.button("💾 Save & Send to Telegram", key="scan_save_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
@@ -375,13 +377,13 @@ def render_user_app():
                 st.error(f"❌ Error sending to Telegram: {e}")
 
     st.write("---")
-    if st.button("🩺 Book Doctor Appointment", key="book_doctor_btn"):
+    if st.button("🩺 Book Doctor Appointment", key="open_appointment_btn"):
         render_appointment_portal()
 
     with st.sidebar:
         st.header("👤 Account")
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-        if st.button("🚪 Logout", key="user_logout_btn"):
+        if st.button("🚪 Logout", key="scan_logout_btn"):
             logout()
             st.rerun()
 
@@ -409,11 +411,11 @@ def render_appointment_portal():
             "Dr. Kumar (Stroke Specialist, MIOT)",
             "Dr. Divya (CT Analysis Expert, Kauvery)",
         ],
-        key="appt_doctor_unique",
+        key="appt_doctor_unique"
     )
 
-    unique_btn_key = f"send_appt_btn_{patient_name}_{int(time.time())}"
-
+    # unique button key to avoid rerun issues
+    unique_btn_key = f"send_appt_btn_{int(time.time())}"
     if st.button("📩 Send Appointment Request", key=unique_btn_key):
         appt = {
             "patient_name": patient_name,
