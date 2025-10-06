@@ -175,14 +175,14 @@ def import_users_json(file_bytes):
 # -------------------------
 def render_login():
     st.title("🔐 Login Portal")
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     colA, colB = st.columns([1, 1])
     with colA:
         if st.button("Login", use_container_width=True):
             if login(username, password):
                 st.success("Login successful ✅")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("❌ Invalid Username or Password")
     with colB:
@@ -199,16 +199,16 @@ def render_admin_dashboard():
         st.header("⚙ Admin Actions")
         if st.button("🚪 Logout"):
             logout()
-            st.rerun()
+            st.experimental_rerun()
 
     tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"])
 
     with tabs[0]:
         st.subheader("Create a new user")
-        new_username = st.text_input("New Username", key="admin_new_user")
-        new_password = st.text_input("New Password", type="password", key="admin_new_pw")
-        role = st.selectbox("Role", ["user", "admin"], index=0, key="admin_new_role")
-        if st.button("Create User", key="admin_create_btn"):
+        new_username = st.text_input("New Username")
+        new_password = st.text_input("New Password", type="password")
+        role = st.selectbox("Role", ["user", "admin"], index=0)
+        if st.button("Create User"):
             ok, msg = add_user(new_username, new_password, role)
             (st.success if ok else st.error)(msg)
 
@@ -247,14 +247,13 @@ def render_admin_dashboard():
 
     with tabs[3]:
         st.subheader("Telegram Settings")
-        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="admin_bot_token")
-        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="admin_chat_id")
-        if st.button("Save Telegram Settings", key="save_telegram_settings"):
+        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""))
+        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""))
+        if st.button("Save Telegram Settings"):
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -277,21 +276,21 @@ def render_user_app():
 
     col1, col2 = st.columns(2)
     with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="user_patient_name")
-        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45, key="user_patient_age")
-        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="user_patient_gender")
+        patient_name = st.text_input("Patient Name", value="John Doe", key="user_name")
+        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45, key="user_age")
+        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="user_gender")
     with col2:
-        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345", key="user_patient_id")
-        patient_contact = st.text_input("Patient Contact Number", value="9876543210", key="user_patient_contact")
-        patient_address = st.text_area("Patient Address", value="Chennai, India", key="user_patient_address")
+        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345", key="user_id")
+        patient_contact = st.text_input("Patient Contact Number", value="9876543210", key="user_contact")
+        patient_address = st.text_area("Patient Address", value="Chennai, India", key="user_address")
 
     st.write("---")
 
     st.sidebar.header("📞 Emergency Contact Settings")
-    relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
-    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
+    relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="relative_name")
+    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="relative_number")
 
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="user_uploaded_file")
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="uploaded_image")
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -382,7 +381,7 @@ def render_user_app():
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         if st.button("🚪 Logout"):
             logout()
-            st.rerun()
+            st.experimental_rerun()
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
@@ -391,16 +390,16 @@ def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    # ✅ Use a form to prevent Enter key issues
-    with st.form("appointment_form"):
+    # Use a form to prevent rerun on Enter
+    with st.form(key="appointment_form"):
         col1, col2 = st.columns(2)
         with col1:
-            patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name_unique")
-            patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile_unique")
-            patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age_unique")
+            patient_name = st.text_input("Patient Name", value="John Doe", key="appt_name")
+            patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_mobile")
+            patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_age")
         with col2:
-            appointment_date = st.date_input("Appointment Date", key="appt_date_unique")
-            appointment_time = st.time_input("Preferred Time", key="appt_time_unique")
+            appointment_date = st.date_input("Appointment Date", key="appt_date")
+            appointment_time = st.time_input("Preferred Time", key="appt_time")
 
         doctor = st.selectbox(
             "Select Doctor",
@@ -410,12 +409,11 @@ def render_appointment_portal():
                 "Dr. Kumar (Stroke Specialist, MIOT)",
                 "Dr. Divya (CT Analysis Expert, Kauvery)",
             ],
-            key="appt_doctor_unique"
+            key="appt_doctor",
         )
 
-        submit_button = st.form_submit_button("📩 Send Appointment Request")
-
-        if submit_button:
+        submitted = st.form_submit_button("📩 Send Appointment Request")
+        if submitted:
             appt = {
                 "patient_name": patient_name,
                 "mobile": patient_mobile,
