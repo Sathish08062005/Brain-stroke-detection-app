@@ -394,8 +394,8 @@ def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    # ✅ Use a form to prevent rerun on Enter press
-    with st.form(key="appointment_form"):
+    # 🧾 Use a form to prevent rerun on Enter key press
+    with st.form("appointment_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
@@ -416,7 +416,7 @@ def render_appointment_portal():
             key="appt_doctor",
         )
 
-        # ✅ Submit button inside form
+        # ⬇️ This button now works only when pressed (Enter won't rerun)
         submitted = st.form_submit_button("📩 Send Appointment Request")
 
         if submitted:
@@ -432,6 +432,7 @@ def render_appointment_portal():
             }
             st.session_state.appointments.append(appt)
             st.success("✅ Appointment request sent to Admin for approval.")
+
 
 
 # -------------------------
