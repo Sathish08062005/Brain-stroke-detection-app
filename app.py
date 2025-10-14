@@ -385,7 +385,7 @@ def render_user_app():
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
-            st.rerun()
+            
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
