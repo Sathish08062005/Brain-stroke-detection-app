@@ -474,3 +474,4 @@ else:
         render_admin_dashboard()
     else:
         render_user_app()
+
