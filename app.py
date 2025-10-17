@@ -5,8 +5,6 @@ import json
 import requests
 import os
 import gdown
-import matplotlib.pyplot as plt
-import seaborn as sns
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
@@ -110,6 +108,8 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
+
+    # 🆕 Added: Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
 
@@ -257,6 +257,10 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
+    # 🆕 Doctor Appointment Management (admin view)
+    with st.expander("🩺 View Doctor Appointments"):
+        render_admin_appointments()
+
     st.divider()
     st.subheader("📝 Recently Sent Reports")
     if st.session_state.report_log:
@@ -301,35 +305,158 @@ def render_user_app():
         stroke_percent = stroke_prob * 100
         no_stroke_percent = no_stroke_prob * 100
 
+        st.subheader("🧾 Patient Information")
+        st.write(f"Name: {patient_name}")
+        st.write(f"Age: {patient_age}")
+        st.write(f"Gender: {patient_gender}")
+        st.write(f"Patient ID: {patient_id}")
+        st.write(f"Contact: {patient_contact}")
+        st.write(f"Address: {patient_address}")
+
         st.subheader("🔍 Prediction Result:")
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
+
+        if stroke_percent > 80:
+            st.error("🔴 Immediate attention needed — very high stroke risk!")
+            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 60 < stroke_percent <= 80:
+            st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
+            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 50 < stroke_percent <= 60:
+            st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
+            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif no_stroke_percent > 90:
+            st.success("🟢 Very low stroke risk — scan looks healthy.")
+            st.info("⏱ Suggested Action: Routine monitoring only.")
+        elif 70 < no_stroke_percent <= 90:
+            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
+            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
         if stroke_prob > 0.5:
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        # -------------------------
-        # 📊 Confusion Matrix Section
-        # -------------------------
-        st.subheader("📊 Model Performance - Confusion Matrix")
+        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
+            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
+            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
-        cm = np.array([[88, 5],
-                       [4, 90]])  # [[TP, FP], [FN, TN]]
+            message = (
+                "🧾 Patient Stroke Report\n\n"
+                f"👤 Name: {patient_name}\n"
+                f"🎂 Age: {patient_age}\n"
+                f"⚧ Gender: {patient_gender}\n"
+                f"🆔 Patient ID: {patient_id}\n"
+                f"📞 Contact: {patient_contact}\n"
+                f"🏠 Address: {patient_address}\n\n"
+                f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
+                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
+            )
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            try:
+                response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
+                if response.status_code == 200:
+                    st.success("✅ Patient report sent to Telegram successfully!")
+                    st.session_state.report_log.append(
+                        {
+                            "patient_name": patient_name,
+                            "stroke_percent": stroke_percent,
+                            "no_stroke_percent": no_stroke_percent,
+                            "by": st.session_state.username or "unknown",
+                        }
+                    )
+                else:
+                    st.error("❌ Failed to send report to Telegram.")
+            except Exception as e:
+                st.error(f"❌ Error sending to Telegram: {e}")
 
-        labels = np.array([["TP:88%", "FP:5%"],
-                           ["FN:4%", "TN:90%"]])
+    st.write("---")
+    if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
+        render_appointment_portal()
 
-        fig, ax = plt.subplots()
-        sns.heatmap(cm, annot=labels, fmt="", cmap="Blues", cbar=False,
-                    xticklabels=["Predicted: Stroke", "Predicted: No Stroke"],
-                    yticklabels=["Actual: Stroke", "Actual: No Stroke"])
-        st.pyplot(fig)
-
-        st.markdown("<p style='text-align:center;'>Confusion Matrix showing model classification accuracy.</p>", unsafe_allow_html=True)
+    with st.sidebar:
+        st.header("👤 Account")
+        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
+        if st.button("🚪 Logout", key="user_logout_btn"):
+            logout()
+            st.rerun()
 
 # -------------------------
-# Main Page Control
+# Doctor Appointment Portal (User Side)
+# -------------------------
+def render_appointment_portal():
+    st.title("🩺 Doctor Appointment Booking")
+    st.write("Book an appointment with a neurologist or radiologist for consultation.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
+        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
+        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
+    with col2:
+        appointment_date = st.date_input("Appointment Date", key="appt_date")
+        appointment_time = st.time_input("Preferred Time", key="appt_time")
+
+    doctor = st.selectbox(
+        "Select Doctor",
+        [
+            "Dr. Ramesh (Neurologist, Apollo)",
+            "Dr. Priya (Radiologist, Fortis)",
+            "Dr. Kumar (Stroke Specialist, MIOT)",
+            "Dr. Divya (CT Analysis Expert, Kauvery)",
+        ],
+        key="appt_doctor",
+    )
+
+    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
+        appt = {
+            "patient_name": patient_name,
+            "mobile": patient_mobile,
+            "age": patient_age,
+            "date": str(appointment_date),
+            "time": str(appointment_time),
+            "doctor": doctor,
+            "status": "Pending",
+            "requested_by": st.session_state.username,
+        }
+        st.session_state.appointments.append(appt)
+        st.success("✅ Appointment request sent to Admin for approval.")
+
+# -------------------------
+# Admin: Manage Doctor Appointments
+# -------------------------
+def render_admin_appointments():
+    st.subheader("🩺 Doctor Appointment Requests")
+    if not st.session_state.appointments:
+        st.info("No appointment requests yet.")
+        return
+
+    for idx, appt in enumerate(st.session_state.appointments):
+        with st.container():
+            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
+            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
+            st.write(f"🗓 {appt['date']} at {appt['time']}")
+            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
+            st.write(f"📋 Status: {appt['status']}")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
+                    appt["status"] = "Approved"
+                    st.success(f"Appointment approved for {appt['patient_name']}")
+            with col2:
+                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
+                    appt["status"] = "Rejected"
+                    st.error(f"Appointment rejected for {appt['patient_name']}")
+            st.write("---")
+
+# -------------------------
+# Main Routing
 # -------------------------
 if not st.session_state.logged_in:
     render_login()
@@ -337,4 +464,4 @@ else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
-        render_user_app()
+        render_user_app() 
