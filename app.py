@@ -255,19 +255,6 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    with st.expander("🩺 View Doctor Appointments"):
-        render_admin_appointments()
-
-    st.divider()
-    st.subheader("📝 Recently Sent Reports")
-    if st.session_state.report_log:
-        for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
-            st.write(
-                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
-            )
-    else:
-        st.caption("No reports yet.")
-
 # -------------------------
 # Stroke App Main UI
 # -------------------------
@@ -314,67 +301,8 @@ def render_user_app():
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
-        if stroke_percent > 80:
-            st.error("🔴 Immediate attention needed — very high stroke risk!")
-            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
-            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 60 < stroke_percent <= 80:
-            st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
-            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
-            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 50 < stroke_percent <= 60:
-            st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
-            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif no_stroke_percent > 90:
-            st.success("🟢 Very low stroke risk — scan looks healthy.")
-            st.info("⏱ Suggested Action: Routine monitoring only.")
-        elif 70 < no_stroke_percent <= 90:
-            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
-            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-
-        if stroke_prob > 0.5:
-            marked_image = highlight_stroke_regions(image)
-            st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
-
-        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
-            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
-            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
-
-            message = (
-                "🧾 Patient Stroke Report\n\n"
-                f"👤 Name: {patient_name}\n"
-                f"🎂 Age: {patient_age}\n"
-                f"⚧ Gender: {patient_gender}\n"
-                f"🆔 Patient ID: {patient_id}\n"
-                f"📞 Contact: {patient_contact}\n"
-                f"🏠 Address: {patient_address}\n\n"
-                f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
-                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
-            )
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-            try:
-                response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
-                if response.status_code == 200:
-                    st.success("✅ Patient report sent to Telegram successfully!")
-                    st.session_state.report_log.append(
-                        {
-                            "patient_name": patient_name,
-                            "stroke_percent": stroke_percent,
-                            "no_stroke_percent": no_stroke_percent,
-                            "by": st.session_state.username or "unknown",
-                        }
-                    )
-                else:
-                    st.error("❌ Failed to send report to Telegram.")
-            except Exception as e:
-                st.error(f"❌ Error sending to Telegram: {e}")
-
         # -------------------------
-        # 📊 Confusion Matrix Display Section (ADDED)
+        # Confusion Matrix Section
         # -------------------------
         st.subheader("📊 Model Performance - Confusion Matrix")
 
@@ -394,22 +322,34 @@ def render_user_app():
                     </tr>
                     <tr>
                         <th></th>
-                        <th style="border:1px solid black; background:#8ed1fc;">Has Disease (CP)</th>
-                        <th style="border:1px solid black; background:#ffb3b3;">No Disease (CN)</th>
+                        <th style="border:1px solid black; background:#8ed1fc;">Predicted Stroke</th>
+                        <th style="border:1px solid black; background:#ffb3b3;">Predicted Normal</th>
                     </tr>
                     <tr>
-                        <th style="border:1px solid black; background:#ffffb3;">Test Positive (TOP)</th>
-                        <td style="border:1px solid black; background:#b3ffb3;">True Positive (TP): {cm_data["True Positive (TP)"]}%</td>
-                        <td style="border:1px solid black; background:#ffcc99;">False Positive (FP): {cm_data["False Positive (FP)"]}%</td>
+                        <th style="border:1px solid black; background:#ffffb3;">Actual Stroke</th>
+                        <td style="border:1px solid black; background:#b3ffb3;">TP: {cm_data["True Positive (TP)"]}</td>
+                        <td style="border:1px solid black; background:#ffcc99;">FN: {cm_data["False Negative (FN)"]}</td>
                     </tr>
                     <tr>
-                        <th style="border:1px solid black; background:#dab6fc;">Test Negative (TON)</th>
-                        <td style="border:1px solid black; background:#99b3ff;">False Negative (FN): {cm_data["False Negative (FN)"]}%</td>
-                        <td style="border:1px solid black; background:#f7b3ff;">True Negative (TN): {cm_data["True Negative (TN)"]}%</td>
+                        <th style="border:1px solid black; background:#dab6fc;">Actual Normal</th>
+                        <td style="border:1px solid black; background:#99b3ff;">FP: {cm_data["False Positive (FP)"]}</td>
+                        <td style="border:1px solid black; background:#f7b3ff;">TN: {cm_data["True Negative (TN)"]}</td>
                     </tr>
                 </table>
             </div>
-            <p style="text-align:center;"><b>Figure:</b> Confusion matrix showing classification performance (in %).</p>
+            <p style="text-align:center;"><b>Figure:</b> Confusion matrix showing model prediction performance.</p>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # ✅ Added explanation section below confusion matrix
+        st.markdown(
+            """
+            <div style="text-align:center; margin-top:15px;">
+                <h4>🧠 Stroke Detection Levels</h4>
+                <p><b>Normal Level:</b> Indicates no abnormal stroke activity detected — patient likely healthy.</p>
+                <p><b>High Level:</b> Indicates strong probability of stroke activity — immediate medical attention required.</p>
+            </div>
             """,
             unsafe_allow_html=True,
         )
