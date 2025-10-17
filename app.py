@@ -108,8 +108,6 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-
-    # 🆕 Added: Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
 
@@ -388,13 +386,12 @@ def render_user_app():
             st.rerun()
 
 # -------------------------
-# Doctor Appointment Portal (User Side)
+# Doctor Appointment Portal (User Side) - Fixed
 # -------------------------
 def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    # Use a form to prevent rerun on Enter key press
     with st.form("appointment_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -416,11 +413,9 @@ def render_appointment_portal():
             key="appt_doctor_input",
         )
 
-        # This button submits the form
         submitted = st.form_submit_button("📩 Send Appointment Request")
 
         if submitted:
-            # Add appointment to session state
             appt = {
                 "patient_name": appt_patient_name,
                 "mobile": appt_patient_mobile,
@@ -433,9 +428,6 @@ def render_appointment_portal():
             }
             st.session_state.appointments.append(appt)
             st.success("✅ Appointment request sent to Admin for approval.")
-            # Optional: stop rerun to keep form values
-            st.rerun()
-
 
 # -------------------------
 # Admin: Manage Doctor Appointments
