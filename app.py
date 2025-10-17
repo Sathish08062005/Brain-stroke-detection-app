@@ -109,9 +109,20 @@ def ensure_state():
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
 
-    # 🆕 Added: Doctor appointment storage
+    # 🆕 Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
+
+    # 🆕 Temporary appointment form storage
+    if "appt_temp" not in st.session_state:
+        st.session_state.appt_temp = {
+            "name": "John Doe",
+            "mobile": "9876543210",
+            "age": 45,
+            "date": None,
+            "time": None,
+            "doctor": None
+        }
 
 ensure_state()
 
@@ -191,6 +202,94 @@ def render_login():
         st.caption("No registration here. Users must be created by the admin.")
 
 # -------------------------
+# Doctor Appointment Portal (User Side)
+# -------------------------
+def render_appointment_portal():
+    st.title("🩺 Doctor Appointment Booking")
+    st.write("Book an appointment with a neurologist or radiologist for consultation.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.session_state.appt_temp["name"] = st.text_input(
+            "Patient Name", value=st.session_state.appt_temp["name"], key="appt_name"
+        )
+        st.session_state.appt_temp["mobile"] = st.text_input(
+            "Mobile Number", value=st.session_state.appt_temp["mobile"], key="appt_mobile"
+        )
+        st.session_state.appt_temp["age"] = st.number_input(
+            "Age", min_value=1, max_value=120, value=st.session_state.appt_temp["age"], key="appt_age"
+        )
+    with col2:
+        st.session_state.appt_temp["date"] = st.date_input(
+            "Appointment Date", value=st.session_state.appt_temp["date"] or st.session_state.appt_temp["date"], key="appt_date"
+        )
+        st.session_state.appt_temp["time"] = st.time_input(
+            "Preferred Time", value=st.session_state.appt_temp["time"] or st.session_state.appt_temp["time"], key="appt_time"
+        )
+
+    st.session_state.appt_temp["doctor"] = st.selectbox(
+        "Select Doctor",
+        [
+            "Dr. Ramesh (Neurologist, Apollo)",
+            "Dr. Priya (Radiologist, Fortis)",
+            "Dr. Kumar (Stroke Specialist, MIOT)",
+            "Dr. Divya (CT Analysis Expert, Kauvery)",
+        ],
+        index=0,
+        key="appt_doctor_select"
+    )
+
+    if st.button("📩 Send Appointment Request", key="send_appt_btn2"):
+        appointment = {
+            "patient_name": st.session_state.appt_temp["name"],
+            "mobile": st.session_state.appt_temp["mobile"],
+            "age": st.session_state.appt_temp["age"],
+            "date": str(st.session_state.appt_temp["date"]),
+            "time": str(st.session_state.appt_temp["time"]),
+            "doctor": st.session_state.appt_temp["doctor"],
+            "status": "Pending",
+            "requested_by": st.session_state.username,
+        }
+        st.session_state.appointments.append(appointment)
+        st.success("✅ Appointment request sent to Admin for approval.")
+        # Clear form
+        st.session_state.appt_temp = {
+            "name": "John Doe",
+            "mobile": "9876543210",
+            "age": 45,
+            "date": None,
+            "time": None,
+            "doctor": None
+        }
+
+# -------------------------
+# Admin: Manage Doctor Appointments
+# -------------------------
+def render_admin_appointments():
+    st.subheader("🩺 Doctor Appointment Requests")
+    if not st.session_state.appointments:
+        st.info("No appointment requests yet.")
+        return
+
+    for idx, appt in enumerate(st.session_state.appointments):
+        with st.container():
+            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
+            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
+            st.write(f"🗓 {appt['date']} at {appt['time']}")
+            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
+            st.write(f"📋 Status: {appt['status']}")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
+                    appt["status"] = "Approved"
+                    st.success(f"Appointment approved for {appt['patient_name']}")
+            with col2:
+                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
+                    appt["status"] = "Rejected"
+                    st.error(f"Appointment rejected for {appt['patient_name']}")
+            st.write("---")
+
+# -------------------------
 # Admin Dashboard
 # -------------------------
 def render_admin_dashboard():
@@ -257,7 +356,7 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # 🆕 Doctor Appointment Management (admin view)
+    # 🆕 Doctor Appointment Management
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -272,7 +371,7 @@ def render_admin_dashboard():
         st.caption("No reports yet.")
 
 # -------------------------
-# Stroke App Main UI
+# Stroke App Main UI (User Side)
 # -------------------------
 def render_user_app():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
@@ -316,28 +415,6 @@ def render_user_app():
         st.subheader("🔍 Prediction Result:")
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
-
-        if stroke_percent > 80:
-            st.error("🔴 Immediate attention needed — very high stroke risk!")
-            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
-            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 60 < stroke_percent <= 80:
-            st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
-            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
-            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif 50 < stroke_percent <= 60:
-            st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
-            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
-        elif no_stroke_percent > 90:
-            st.success("🟢 Very low stroke risk — scan looks healthy.")
-            st.info("⏱ Suggested Action: Routine monitoring only.")
-        elif 70 < no_stroke_percent <= 90:
-            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
-            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
-            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
         if stroke_prob > 0.5:
             marked_image = highlight_stroke_regions(image)
@@ -388,74 +465,6 @@ def render_user_app():
             st.rerun()
 
 # -------------------------
-# Doctor Appointment Portal (User Side)
-# -------------------------
-def render_appointment_portal():
-    st.title("🩺 Doctor Appointment Booking")
-    st.write("Book an appointment with a neurologist or radiologist for consultation.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
-        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
-        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
-    with col2:
-        appointment_date = st.date_input("Appointment Date", key="appt_date")
-        appointment_time = st.time_input("Preferred Time", key="appt_time")
-
-    doctor = st.selectbox(
-        "Select Doctor",
-        [
-            "Dr. Ramesh (Neurologist, Apollo)",
-            "Dr. Priya (Radiologist, Fortis)",
-            "Dr. Kumar (Stroke Specialist, MIOT)",
-            "Dr. Divya (CT Analysis Expert, Kauvery)",
-        ],
-        key="appt_doctor",
-    )
-
-    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
-        appt = {
-            "patient_name": patient_name,
-            "mobile": patient_mobile,
-            "age": patient_age,
-            "date": str(appointment_date),
-            "time": str(appointment_time),
-            "doctor": doctor,
-            "status": "Pending",
-            "requested_by": st.session_state.username,
-        }
-        st.session_state.appointments.append(appt)
-        st.success("✅ Appointment request sent to Admin for approval.")
-
-# -------------------------
-# Admin: Manage Doctor Appointments
-# -------------------------
-def render_admin_appointments():
-    st.subheader("🩺 Doctor Appointment Requests")
-    if not st.session_state.appointments:
-        st.info("No appointment requests yet.")
-        return
-
-    for idx, appt in enumerate(st.session_state.appointments):
-        with st.container():
-            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
-            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
-            st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
-            st.write(f"📋 Status: {appt['status']}")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
-                    appt["status"] = "Approved"
-                    st.success(f"Appointment approved for {appt['patient_name']}")
-            with col2:
-                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
-                    appt["status"] = "Rejected"
-                    st.error(f"Appointment rejected for {appt['patient_name']}")
-            st.write("---")
-
-# -------------------------
 # Main Routing
 # -------------------------
 if not st.session_state.logged_in:
@@ -464,4 +473,4 @@ else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
-        render_user_app() 
+        render_user_app()
