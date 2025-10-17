@@ -396,24 +396,14 @@ def render_appointment_portal():
 
     col1, col2 = st.columns(2)
     with col1:
-        st.session_state.appt_temp["name"] = st.text_input(
-            "Patient Name", value=st.session_state.appt_temp["name"], key="appt_name"
-        )
-        st.session_state.appt_temp["mobile"] = st.text_input(
-            "Mobile Number", value=st.session_state.appt_temp["mobile"], key="appt_mobile"
-        )
-        st.session_state.appt_temp["age"] = st.number_input(
-            "Age", min_value=1, max_value=120, value=st.session_state.appt_temp["age"], key="appt_age"
-        )
+        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
+        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
+        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
     with col2:
-        st.session_state.appt_temp["date"] = st.date_input(
-            "Appointment Date", value=st.session_state.appt_temp["date"] or st.session_state.appt_temp["date"], key="appt_date"
-        )
-        st.session_state.appt_temp["time"] = st.time_input(
-            "Preferred Time", value=st.session_state.appt_temp["time"] or st.session_state.appt_temp["time"], key="appt_time"
-        )
+        appointment_date = st.date_input("Appointment Date", key="appt_date")
+        appointment_time = st.time_input("Preferred Time", key="appt_time")
 
-    st.session_state.appt_temp["doctor"] = st.selectbox(
+    doctor = st.selectbox(
         "Select Doctor",
         [
             "Dr. Ramesh (Neurologist, Apollo)",
@@ -421,47 +411,30 @@ def render_appointment_portal():
             "Dr. Kumar (Stroke Specialist, MIOT)",
             "Dr. Divya (CT Analysis Expert, Kauvery)",
         ],
-        index=0,
-        key="appt_doctor_select"
+        key="appt_doctor",
     )
 
-    # Submit button triggers only when clicked
-    if st.button("📩 Send Appointment Request", key="send_appt_btn2"):
-        appointment = {
-            "patient_name": st.session_state.appt_temp["name"],
-            "mobile": st.session_state.appt_temp["mobile"],
-            "age": st.session_state.appt_temp["age"],
-            "date": str(st.session_state.appt_temp["date"]),
-            "time": str(st.session_state.appt_temp["time"]),
-            "doctor": st.session_state.appt_temp["doctor"],
+    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
+        appt = {
+            "patient_name": patient_name,
+            "mobile": patient_mobile,
+            "age": patient_age,
+            "date": str(appointment_date),
+            "time": str(appointment_time),
+            "doctor": doctor,
             "status": "Pending",
             "requested_by": st.session_state.username,
         }
-        st.session_state.appointments.append(appointment)
+        st.session_state.appointments.append(appt)
         st.success("✅ Appointment request sent to Admin for approval.")
-        # Clear form values
-        st.session_state.appt_temp = {
-            "name": "John Doe",
-            "mobile": "9876543210",
-            "age": 45,
-            "date": None,
-            "time": None,
-            "doctor": None
-        }
 
-    st.write("---")
-    st.subheader("📋 All Appointment Requests")
-    if st.session_state.appointments:
-        for idx, appt in enumerate(st.session_state.appointments):
-            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
-            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
-            st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
-            st.write(f"📋 Status: {appt['status']}")
-            st.write("---")
-    else:
+# -------------------------
+# Admin: Manage Doctor Appointments
+# -------------------------
+def render_admin_appointments():
+    st.subheader("🩺 Doctor Appointment Requests")
+    if not st.session_state.appointments:
         st.info("No appointment requests yet.")
-
         return
 
     for idx, appt in enumerate(st.session_state.appointments):
