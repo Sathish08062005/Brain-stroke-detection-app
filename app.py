@@ -5,6 +5,8 @@ import json
 import requests
 import os
 import gdown
+import matplotlib.pyplot as plt
+import seaborn as sns
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
@@ -255,6 +257,16 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
+    st.divider()
+    st.subheader("📝 Recently Sent Reports")
+    if st.session_state.report_log:
+        for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
+            st.write(
+                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
+            )
+    else:
+        st.caption("No reports yet.")
+
 # -------------------------
 # Stroke App Main UI
 # -------------------------
@@ -289,70 +301,32 @@ def render_user_app():
         stroke_percent = stroke_prob * 100
         no_stroke_percent = no_stroke_prob * 100
 
-        st.subheader("🧾 Patient Information")
-        st.write(f"Name: {patient_name}")
-        st.write(f"Age: {patient_age}")
-        st.write(f"Gender: {patient_gender}")
-        st.write(f"Patient ID: {patient_id}")
-        st.write(f"Contact: {patient_contact}")
-        st.write(f"Address: {patient_address}")
-
         st.subheader("🔍 Prediction Result:")
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
+        if stroke_prob > 0.5:
+            marked_image = highlight_stroke_regions(image)
+            st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
+
         # -------------------------
-        # Confusion Matrix Section
+        # 📊 Confusion Matrix Section
         # -------------------------
         st.subheader("📊 Model Performance - Confusion Matrix")
 
-        cm_data = {
-            "True Positive (TP)": 88,
-            "False Positive (FP)": 5,
-            "False Negative (FN)": 4,
-            "True Negative (TN)": 90,
-        }
+        cm = np.array([[88, 5],
+                       [4, 90]])  # [[TP, FP], [FN, TN]]
 
-        st.markdown(
-            f"""
-            <div style="display: flex; justify-content: center;">
-                <table style="border-collapse: collapse; text-align: center;">
-                    <tr>
-                        <th style="border:1px solid black; background:#f0f0f0;" colspan="3">Ground Truth Label</th>
-                    </tr>
-                    <tr>
-                        <th></th>
-                        <th style="border:1px solid black; background:#8ed1fc;">Predicted Stroke</th>
-                        <th style="border:1px solid black; background:#ffb3b3;">Predicted Normal</th>
-                    </tr>
-                    <tr>
-                        <th style="border:1px solid black; background:#ffffb3;">Actual Stroke</th>
-                        <td style="border:1px solid black; background:#b3ffb3;">TP: {cm_data["True Positive (TP)"]}</td>
-                        <td style="border:1px solid black; background:#ffcc99;">FN: {cm_data["False Negative (FN)"]}</td>
-                    </tr>
-                    <tr>
-                        <th style="border:1px solid black; background:#dab6fc;">Actual Normal</th>
-                        <td style="border:1px solid black; background:#99b3ff;">FP: {cm_data["False Positive (FP)"]}</td>
-                        <td style="border:1px solid black; background:#f7b3ff;">TN: {cm_data["True Negative (TN)"]}</td>
-                    </tr>
-                </table>
-            </div>
-            <p style="text-align:center;"><b>Figure:</b> Confusion matrix showing model prediction performance.</p>
-            """,
-            unsafe_allow_html=True,
-        )
+        labels = np.array([["TP:88%", "FP:5%"],
+                           ["FN:4%", "TN:90%"]])
 
-        # ✅ Added explanation section below confusion matrix
-        st.markdown(
-            """
-            <div style="text-align:center; margin-top:15px;">
-                <h4>🧠 Stroke Detection Levels</h4>
-                <p><b>Normal Level:</b> Indicates no abnormal stroke activity detected — patient likely healthy.</p>
-                <p><b>High Level:</b> Indicates strong probability of stroke activity — immediate medical attention required.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        fig, ax = plt.subplots()
+        sns.heatmap(cm, annot=labels, fmt="", cmap="Blues", cbar=False,
+                    xticklabels=["Predicted: Stroke", "Predicted: No Stroke"],
+                    yticklabels=["Actual: Stroke", "Actual: No Stroke"])
+        st.pyplot(fig)
+
+        st.markdown("<p style='text-align:center;'>Confusion Matrix showing model classification accuracy.</p>", unsafe_allow_html=True)
 
 # -------------------------
 # Main Page Control
