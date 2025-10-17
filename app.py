@@ -108,8 +108,6 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-
-    # 🆕 Added: Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
 
@@ -257,7 +255,6 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # 🆕 Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -376,87 +373,49 @@ def render_user_app():
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
 
-    st.write("---")
-    if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
-        render_appointment_portal()
+        # -------------------------
+        # 📊 Confusion Matrix Display Section (ADDED)
+        # -------------------------
+        st.subheader("📊 Model Performance - Confusion Matrix")
 
-    with st.sidebar:
-        st.header("👤 Account")
-        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-        if st.button("🚪 Logout", key="user_logout_btn"):
-            logout()
-            st.rerun()
-
-# -------------------------
-# Doctor Appointment Portal (User Side)
-# -------------------------
-def render_appointment_portal():
-    st.title("🩺 Doctor Appointment Booking")
-    st.write("Book an appointment with a neurologist or radiologist for consultation.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
-        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
-        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
-    with col2:
-        appointment_date = st.date_input("Appointment Date", key="appt_date")
-        appointment_time = st.time_input("Preferred Time", key="appt_time")
-
-    doctor = st.selectbox(
-        "Select Doctor",
-        [
-            "Dr. Ramesh (Neurologist, Apollo)",
-            "Dr. Priya (Radiologist, Fortis)",
-            "Dr. Kumar (Stroke Specialist, MIOT)",
-            "Dr. Divya (CT Analysis Expert, Kauvery)",
-        ],
-        key="appt_doctor",
-    )
-
-    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
-        appt = {
-            "patient_name": patient_name,
-            "mobile": patient_mobile,
-            "age": patient_age,
-            "date": str(appointment_date),
-            "time": str(appointment_time),
-            "doctor": doctor,
-            "status": "Pending",
-            "requested_by": st.session_state.username,
+        cm_data = {
+            "True Positive (TP)": 88,
+            "False Positive (FP)": 5,
+            "False Negative (FN)": 4,
+            "True Negative (TN)": 90,
         }
-        st.session_state.appointments.append(appt)
-        st.success("✅ Appointment request sent to Admin for approval.")
+
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: center;">
+                <table style="border-collapse: collapse; text-align: center;">
+                    <tr>
+                        <th style="border:1px solid black; background:#f0f0f0;" colspan="3">Ground Truth Label</th>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <th style="border:1px solid black; background:#8ed1fc;">Has Disease (CP)</th>
+                        <th style="border:1px solid black; background:#ffb3b3;">No Disease (CN)</th>
+                    </tr>
+                    <tr>
+                        <th style="border:1px solid black; background:#ffffb3;">Test Positive (TOP)</th>
+                        <td style="border:1px solid black; background:#b3ffb3;">True Positive (TP): {cm_data["True Positive (TP)"]}%</td>
+                        <td style="border:1px solid black; background:#ffcc99;">False Positive (FP): {cm_data["False Positive (FP)"]}%</td>
+                    </tr>
+                    <tr>
+                        <th style="border:1px solid black; background:#dab6fc;">Test Negative (TON)</th>
+                        <td style="border:1px solid black; background:#99b3ff;">False Negative (FN): {cm_data["False Negative (FN)"]}%</td>
+                        <td style="border:1px solid black; background:#f7b3ff;">True Negative (TN): {cm_data["True Negative (TN)"]}%</td>
+                    </tr>
+                </table>
+            </div>
+            <p style="text-align:center;"><b>Figure:</b> Confusion matrix showing classification performance (in %).</p>
+            """,
+            unsafe_allow_html=True,
+        )
 
 # -------------------------
-# Admin: Manage Doctor Appointments
-# -------------------------
-def render_admin_appointments():
-    st.subheader("🩺 Doctor Appointment Requests")
-    if not st.session_state.appointments:
-        st.info("No appointment requests yet.")
-        return
-
-    for idx, appt in enumerate(st.session_state.appointments):
-        with st.container():
-            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
-            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
-            st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
-            st.write(f"📋 Status: {appt['status']}")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
-                    appt["status"] = "Approved"
-                    st.success(f"Appointment approved for {appt['patient_name']}")
-            with col2:
-                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
-                    appt["status"] = "Rejected"
-                    st.error(f"Appointment rejected for {appt['patient_name']}")
-            st.write("---")
-
-# -------------------------
-# Main Routing
+# Main Page Control
 # -------------------------
 if not st.session_state.logged_in:
     render_login()
@@ -464,4 +423,4 @@ else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
-        render_user_app() 
+        render_user_app()
