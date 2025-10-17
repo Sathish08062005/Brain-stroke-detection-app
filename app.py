@@ -434,7 +434,7 @@ def render_appointment_portal():
             st.session_state.appointments.append(appt)
             st.success("✅ Appointment request sent to Admin for approval.")
             # Optional: stop rerun to keep form values
-            st.experimental_rerun()
+            st.rerun()
 
 
 # -------------------------
