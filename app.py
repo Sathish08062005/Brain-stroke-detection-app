@@ -1,20 +1,30 @@
+import streamlit as st
+
 # -------------------------
-# Doctor Appointment Portal (User Side) - Alternative Version
+# Initialize session state
+# -------------------------
+if "username" not in st.session_state:
+    st.session_state.username = "JohnDoe"  # default user for testing
+
+if "appointments" not in st.session_state:
+    st.session_state.appointments = []
+
+if "appt_temp" not in st.session_state:
+    st.session_state.appt_temp = {
+        "name": "John Doe",
+        "mobile": "9876543210",
+        "age": 45,
+        "date": None,
+        "time": None,
+        "doctor": None
+    }
+
+# -------------------------
+# Doctor Appointment Portal
 # -------------------------
 def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
-
-    # Use session state to store temporary form values to prevent rerun issues
-    if "appt_temp" not in st.session_state:
-        st.session_state.appt_temp = {
-            "name": "John Doe",
-            "mobile": "9876543210",
-            "age": 45,
-            "date": None,
-            "time": None,
-            "doctor": None
-        }
 
     col1, col2 = st.columns(2)
     with col1:
@@ -70,3 +80,22 @@ def render_appointment_portal():
             "time": None,
             "doctor": None
         }
+
+    st.write("---")
+    st.subheader("📋 All Appointment Requests")
+    if st.session_state.appointments:
+        for idx, appt in enumerate(st.session_state.appointments):
+            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
+            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
+            st.write(f"🗓 {appt['date']} at {appt['time']}")
+            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
+            st.write(f"📋 Status: {appt['status']}")
+            st.write("---")
+    else:
+        st.info("No appointment requests yet.")
+
+# -------------------------
+# Run the portal
+# -------------------------
+if __name__ == "__main__":
+    render_appointment_portal()
