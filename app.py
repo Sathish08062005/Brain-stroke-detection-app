@@ -420,17 +420,7 @@ def render_appointment_portal():
 
         submitted = st.form_submit_button("📩 Send Appointment Request")
 
-        if submitted:
-            appt = {
-                "patient_name": patient_name,
-                "mobile": patient_mobile,
-                "age": patient_age,
-                "date": str(appointment_date),
-                "time": str(appointment_time),
-                "doctor": doctor,
-                "status": "Pending",
-                "requested_by": st.session_state.username,
-            }
+  
             st.session_state.appointments.append(appt)
             st.success("✅ Appointment request sent successfully!")
 
