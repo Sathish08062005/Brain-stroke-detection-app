@@ -634,24 +634,6 @@ def render_user_app():
             logout()
             st.rerun()
 
-# -------------------------
-# Initialize session state
-# -------------------------
-if "username" not in st.session_state:
-    st.session_state.username = "JohnDoe"  # default user for testing
-
-if "appointments" not in st.session_state:
-    st.session_state.appointments = []
-
-if "appt_temp" not in st.session_state:
-    st.session_state.appt_temp = {
-        "name": "John Doe",
-        "mobile": "9876543210",
-        "age": 45,
-        "date": None,
-        "time": None,
-        "doctor": None
-    }
 
 # -------------------------
 # Doctor Appointment Portal
