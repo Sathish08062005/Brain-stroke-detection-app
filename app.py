@@ -385,45 +385,48 @@ def render_user_app():
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
-            
+            st.rerun()
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
 # -------------------------
-# -------------------------
-# Doctor Appointment Portal (User Side) – No Rerun Version
-# -------------------------
 def render_appointment_portal():
-    st.title("🩺 Book Doctor Appointment (Inline – No Rerun)")
+    st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    # Use st.form to prevent rerun until submission
-    with st.form("doctor_appt_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            patient_name = st.text_input("Patient Name", value="John Doe")
-            patient_mobile = st.text_input("Mobile Number", value="9876543210")
-            patient_age = st.number_input("Age", min_value=1, max_value=120, value=45)
-        with col2:
-            appointment_date = st.date_input("Appointment Date")
-            appointment_time = st.time_input("Preferred Time")
+    col1, col2 = st.columns(2)
+    with col1:
+        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
+        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
+        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
+    with col2:
+        appointment_date = st.date_input("Appointment Date", key="appt_date")
+        appointment_time = st.time_input("Preferred Time", key="appt_time")
 
-        doctor = st.selectbox(
-            "Select Doctor",
-            [
-                "Dr. Ramesh (Neurologist, Apollo)",
-                "Dr. Priya (Radiologist, Fortis)",
-                "Dr. Kumar (Stroke Specialist, MIOT)",
-                "Dr. Divya (CT Analysis Expert, Kauvery)",
-            ],
-        )
+    doctor = st.selectbox(
+        "Select Doctor",
+        [
+            "Dr. Ramesh (Neurologist, Apollo)",
+            "Dr. Priya (Radiologist, Fortis)",
+            "Dr. Kumar (Stroke Specialist, MIOT)",
+            "Dr. Divya (CT Analysis Expert, Kauvery)",
+        ],
+        key="appt_doctor",
+    )
 
-        submitted = st.form_submit_button("📩 Send Appointment Request")
-
-  
-            st.session_state.appointments.append(appt)
-            st.success("✅ Appointment request sent successfully!")
-
+    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
+        appt = {
+            "patient_name": patient_name,
+            "mobile": patient_mobile,
+            "age": patient_age,
+            "date": str(appointment_date),
+            "time": str(appointment_time),
+            "doctor": doctor,
+            "status": "Pending",
+            "requested_by": st.session_state.username,
+        }
+        st.session_state.appointments.append(appt)
+        st.success("✅ Appointment request sent to Admin for approval.")
 
 # -------------------------
 # Admin: Manage Doctor Appointments
@@ -432,7 +435,8 @@ def render_admin_appointments():
     st.subheader("🩺 Doctor Appointment Requests")
     if not st.session_state.appointments:
         st.info("No appointment requests yet.")
-        
+        return
+
     for idx, appt in enumerate(st.session_state.appointments):
         with st.container():
             st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
