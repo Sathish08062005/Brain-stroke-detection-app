@@ -411,6 +411,7 @@ def render_user_app():
         st.write(f"Patient ID: {patient_id}")
         st.write(f"Contact: {patient_contact}")
         st.write(f"Address: {patient_address}")
+        st.write(f"Address: {patient_bp}")
 
         st.subheader("🔍 Prediction Result:")
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
