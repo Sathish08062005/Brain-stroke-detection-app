@@ -7,6 +7,7 @@ import os
 import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+from io import BytesIO
 
 # -------------------------
 # Users file for persistence
@@ -25,18 +26,13 @@ st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 # -------------------------
 # App Branding
 # -------------------------
-st.markdown(
-    """ 
-#  🧠 NeuroNexusAI 
- """,
-    unsafe_allow_html=True,
-)
+st.markdown("# 🧠 NeuroNexusAI")
 
 # -------------------------
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -50,21 +46,18 @@ def load_stroke_model():
 model = load_stroke_model()
 
 # -------------------------
-# Preprocess image for classification
+# Preprocess + Classify
 # -------------------------
 def preprocess_image(image):
     image = cv2.resize(image, (224, 224))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = img_to_array(image) / 255.0
-    image = np.expand_dims(image, axis=0)
-    return image
+    return np.expand_dims(image, axis=0)
 
 def classify_image(image):
     processed = preprocess_image(image)
     prediction = model.predict(processed)[0][0]
-    stroke_prob = float(prediction)
-    no_stroke_prob = 1 - stroke_prob
-    return stroke_prob, no_stroke_prob
+    return float(prediction), float(1 - prediction)
 
 def highlight_stroke_regions(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -75,11 +68,10 @@ def highlight_stroke_regions(image):
     for cnt in contours:
         if cv2.contourArea(cnt) > 100:
             cv2.drawContours(mask, [cnt], -1, (0, 0, 255), -1)
-    highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
-    return highlighted
+    return cv2.addWeighted(image, 0.7, mask, 0.3, 0)
 
 # -------------------------
-# Auth state
+# Auth + State Init
 # -------------------------
 def ensure_state():
     if "logged_in" not in st.session_state:
@@ -94,306 +86,69 @@ def ensure_state():
                 with open(USERS_FILE, "r") as f:
                     st.session_state.users = json.load(f)
             except:
-                st.session_state.users = {
-                    "Sathish": {"password": "Praveenasathish", "role": "admin"}
-                }
+                st.session_state.users = {"Sathish": {"password": "Praveenasathish", "role": "admin"}}
         else:
-            st.session_state.users = {
-                "Sathish": {"password": "Praveenasathish", "role": "admin"}
-            }
+            st.session_state.users = {"Sathish": {"password": "Praveenasathish", "role": "admin"}}
     if "settings" not in st.session_state:
-        st.session_state.settings = {
-            "BOT_TOKEN": "8427091249:AAHZpuUI9A6xjA6boADh-nuO7SyYqMygMTY",
-            "CHAT_ID": "6250672742",
-        }
+        st.session_state.settings = {"BOT_TOKEN": "", "CHAT_ID": ""}
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-
-    # 🆕 Doctor appointment storage
     if "appointments" not in st.session_state:
         st.session_state.appointments = []
-
-    # 🆕 Temporary appointment form storage
     if "appt_temp" not in st.session_state:
         st.session_state.appt_temp = {
-            "name": "John Doe",
-            "mobile": "9876543210",
-            "age": 45,
-            "date": None,
-            "time": None,
-            "doctor": None
+            "name": "John Doe", "mobile": "9876543210", "age": 45,
+            "date": None, "time": None, "doctor": None
         }
 
 ensure_state()
 
 # -------------------------
-# Auth functions
+# Telegram Send Function
 # -------------------------
-def login(username, password):
-    users = st.session_state.users
-    if username in users and users[username]["password"] == password:
-        st.session_state.logged_in = True
-        st.session_state.username = username
-        st.session_state.role = users[username]["role"]
-        return True
-    return False
+def send_report_to_telegram(message, image=None):
+    BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
+    CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
-def logout():
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.session_state.role = None
+    if not BOT_TOKEN or not CHAT_ID:
+        return False, "Telegram settings missing."
 
-def add_user(new_username, new_password, role="user"):
-    if not new_username or not new_password:
-        return False, "Username and password are required."
-    if new_username in st.session_state.users:
-        return False, "Username already exists."
-    st.session_state.users[new_username] = {"password": new_password, "role": role}
-    save_users_to_file()
-    return True, f"User '{new_username}' created."
-
-def delete_user(username):
-    if username == "Sathish":
-        return False, "Cannot delete the default admin."
-    if username not in st.session_state.users:
-        return False, "User not found."
-    del st.session_state.users[username]
-    save_users_to_file()
-    return True, f"User '{username}' deleted."
-
-def reset_password(username, new_password):
-    if username not in st.session_state.users:
-        return False, "User not found."
-    st.session_state.users[username]["password"] = new_password
-    save_users_to_file()
-    return True, f"Password reset for '{username}'."
-
-def export_users_json():
-    return json.dumps(st.session_state.users, indent=2)
-
-def import_users_json(file_bytes):
     try:
-        data = json.loads(file_bytes.decode("utf-8"))
-        for k, v in data.items():
-            if not isinstance(v, dict) or "password" not in v or "role" not in v:
-                return False, "Invalid users JSON schema."
-        st.session_state.users = data
-        save_users_to_file()
-        return True, "Users imported."
+        url_msg = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        res = requests.post(url_msg, data={"chat_id": CHAT_ID, "text": message})
+        
+        if res.status_code != 200:
+            return False, f"Message send failed: {res.text}"
+
+        if image is not None:
+            _, buffer = cv2.imencode(".jpg", image)
+            img_bytes = BytesIO(buffer.tobytes())
+            url_img = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+            res = requests.post(url_img, data={"chat_id": CHAT_ID}, files={"photo": img_bytes})
+            if res.status_code != 200:
+                return False, f"Image send failed: {res.text}"
+
+        return True, "Report sent successfully."
     except Exception as e:
-        return False, f"Import failed: {e}"
+        return False, f"Error: {e}"
 
 # -------------------------
-# UI: Login
-# -------------------------
-def render_login():
-    st.title("🔐 Login Portal")
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
-    colA, colB = st.columns([1, 1])
-    with colA:
-        if st.button("Login", use_container_width=True, key="login_btn"):
-            if login(username, password):
-                st.success("Login successful ✅")
-                st.rerun()
-            else:
-                st.error("❌ Invalid Username or Password")
-    with colB:
-        st.caption("No registration here. Users must be created by the admin.")
-
-# -------------------------
-# Doctor Appointment Portal (User Side)
-# -------------------------
-def render_appointment_portal():
-    st.title("🩺 Doctor Appointment Booking")
-    st.write("Book an appointment with a neurologist or radiologist for consultation.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.session_state.appt_temp["name"] = st.text_input(
-            "Patient Name", value=st.session_state.appt_temp["name"], key="appt_name"
-        )
-        st.session_state.appt_temp["mobile"] = st.text_input(
-            "Mobile Number", value=st.session_state.appt_temp["mobile"], key="appt_mobile"
-        )
-        st.session_state.appt_temp["age"] = st.number_input(
-            "Age", min_value=1, max_value=120, value=st.session_state.appt_temp["age"], key="appt_age"
-        )
-    with col2:
-        st.session_state.appt_temp["date"] = st.date_input(
-            "Appointment Date", value=st.session_state.appt_temp["date"] or st.session_state.appt_temp["date"], key="appt_date"
-        )
-        st.session_state.appt_temp["time"] = st.time_input(
-            "Preferred Time", value=st.session_state.appt_temp["time"] or st.session_state.appt_temp["time"], key="appt_time"
-        )
-
-    st.session_state.appt_temp["doctor"] = st.selectbox(
-        "Select Doctor",
-        [
-            "Dr. Ramesh (Neurologist, Apollo)",
-            "Dr. Priya (Radiologist, Fortis)",
-            "Dr. Kumar (Stroke Specialist, MIOT)",
-            "Dr. Divya (CT Analysis Expert, Kauvery)",
-        ],
-        index=0,
-        key="appt_doctor_select"
-    )
-
-    if st.button("📩 Send Appointment Request", key="send_appt_btn2"):
-        appointment = {
-            "patient_name": st.session_state.appt_temp["name"],
-            "mobile": st.session_state.appt_temp["mobile"],
-            "age": st.session_state.appt_temp["age"],
-            "date": str(st.session_state.appt_temp["date"]),
-            "time": str(st.session_state.appt_temp["time"]),
-            "doctor": st.session_state.appt_temp["doctor"],
-            "status": "Pending",
-            "requested_by": st.session_state.username,
-        }
-        st.session_state.appointments.append(appointment)
-        st.success("✅ Appointment request sent to Admin for approval.")
-        # Clear form
-        st.session_state.appt_temp = {
-            "name": "John Doe",
-            "mobile": "9876543210",
-            "age": 45,
-            "date": None,
-            "time": None,
-            "doctor": None
-        }
-
-# -------------------------
-# Admin: Manage Doctor Appointments
-# -------------------------
-def render_admin_appointments():
-    st.subheader("🩺 Doctor Appointment Requests")
-    if not st.session_state.appointments:
-        st.info("No appointment requests yet.")
-        return
-
-    for idx, appt in enumerate(st.session_state.appointments):
-        with st.container():
-            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
-            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
-            st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
-            st.write(f"📋 Status: {appt['status']}")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
-                    appt["status"] = "Approved"
-                    st.success(f"Appointment approved for {appt['patient_name']}")
-            with col2:
-                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
-                    appt["status"] = "Rejected"
-                    st.error(f"Appointment rejected for {appt['patient_name']}")
-            st.write("---")
-
-# -------------------------
-# Admin Dashboard
-# -------------------------
-def render_admin_dashboard():
-    st.title("🛡 Admin Dashboard")
-    st.write(f"Welcome, {st.session_state.username} (admin)")
-
-    with st.sidebar:
-        st.header("⚙ Admin Actions")
-        if st.button("🚪 Logout", key="admin_logout_btn"):
-            logout()
-            st.rerun()
-
-    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"])
-
-    with tabs[0]:
-        st.subheader("Create a new user")
-        new_username = st.text_input("New Username", key="new_username")
-        new_password = st.text_input("New Password", type="password", key="new_user_password")
-        role = st.selectbox("Role", ["user", "admin"], index=0, key="new_user_role")
-        if st.button("Create User", key="create_user_btn"):
-            ok, msg = add_user(new_username, new_password, role)
-            (st.success if ok else st.error)(msg)
-
-    with tabs[1]:
-        st.subheader("All Users")
-        users = st.session_state.users
-        if users:
-            for uname, meta in users.items():
-                cols = st.columns([2, 1, 2, 2])
-                cols[0].write(f"{uname}")
-                cols[1].write(meta["role"])
-                with cols[2]:
-                    new_pw = st.text_input(f"New Password for {uname}", key=f"pw_{uname}", type="password")
-                    if st.button(f"Reset Password: {uname}", key=f"btn_reset_{uname}"):
-                        ok, msg = reset_password(uname, new_pw)
-                        (st.success if ok else st.error)(msg)
-                with cols[3]:
-                    if st.button(f"Delete {uname}", key=f"btn_del_{uname}"):
-                        ok, msg = delete_user(uname)
-                        (st.success if ok else st.error)(msg)
-        else:
-            st.info("No users yet.")
-
-    with tabs[2]:
-        st.subheader("Export / Import Users")
-        st.download_button(
-            "📥 Download users.json",
-            data=export_users_json(),
-            file_name="users.json",
-            mime="application/json",
-            key="download_users_btn"
-        )
-        up = st.file_uploader("Import users.json", type=["json"], key="import_users_uploader")
-        if up is not None:
-            ok, msg = import_users_json(up.read())
-            (st.success if ok else st.error)(msg)
-
-    with tabs[3]:
-        st.subheader("Telegram Settings")
-        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token")
-        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="chat_id")
-        if st.button("Save Telegram Settings", key="save_telegram_btn"):
-            st.session_state.settings["BOT_TOKEN"] = bot_token
-            st.session_state.settings["CHAT_ID"] = chat_id
-            st.success("Saved Telegram settings.")
-
-    # 🆕 Doctor Appointment Management
-    with st.expander("🩺 View Doctor Appointments"):
-        render_admin_appointments()
-
-    st.divider()
-    st.subheader("📝 Recently Sent Reports")
-    if st.session_state.report_log:
-        for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
-            st.write(
-                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
-            )
-    else:
-        st.caption("No reports yet.")
-
-# -------------------------
-# Stroke App Main UI (User Side)
+# User Stroke Detection
 # -------------------------
 def render_user_app():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
-    st.write("Upload a brain scan image to check stroke probability and view affected regions.")
 
     col1, col2 = st.columns(2)
     with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="user_patient_name")
-        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45, key="user_patient_age")
-        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="user_patient_gender")
+        patient_name = st.text_input("Patient Name", value="John Doe")
+        patient_age = st.number_input("Patient Age", 1, 120, 45)
+        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"])
     with col2:
-        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345", key="user_patient_id")
-        patient_contact = st.text_input("Patient Contact Number", value="9876543210", key="user_patient_contact")
-        patient_address = st.text_area("Patient Address", value="Chennai, India", key="user_patient_address")
+        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345")
+        patient_contact = st.text_input("Patient Contact Number", value="9876543210")
+        patient_address = st.text_area("Patient Address", value="Chennai, India")
 
-    st.write("---")
-
-    st.sidebar.header("📞 Emergency Contact Settings")
-    relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
-    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
-
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="upload_scan")
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -401,77 +156,117 @@ def render_user_app():
         st.image(image, caption="🖼 Uploaded Scan", use_column_width=True)
 
         stroke_prob, no_stroke_prob = classify_image(image)
-        stroke_percent = stroke_prob * 100
-        no_stroke_percent = no_stroke_prob * 100
+        stroke_percent, no_stroke_percent = stroke_prob * 100, no_stroke_prob * 100
 
-        st.subheader("🧾 Patient Information")
-        st.write(f"Name: {patient_name}")
-        st.write(f"Age: {patient_age}")
-        st.write(f"Gender: {patient_gender}")
-        st.write(f"Patient ID: {patient_id}")
-        st.write(f"Contact: {patient_contact}")
-        st.write(f"Address: {patient_address}")
-
-        st.subheader("🔍 Prediction Result:")
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
-        if stroke_prob > 0.5:
-            marked_image = highlight_stroke_regions(image)
-            st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
+        marked_image = highlight_stroke_regions(image) if stroke_prob > 0.5 else image
 
-        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
-            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
-            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
-
+        if st.button("💾 Save & Send to Telegram"):
             message = (
-                "🧾 Patient Stroke Report\n\n"
-                f"👤 Name: {patient_name}\n"
-                f"🎂 Age: {patient_age}\n"
-                f"⚧ Gender: {patient_gender}\n"
-                f"🆔 Patient ID: {patient_id}\n"
-                f"📞 Contact: {patient_contact}\n"
-                f"🏠 Address: {patient_address}\n\n"
-                f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
-                f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
+                f"🧾 Stroke Report\n\n"
+                f"👤 {patient_name} | {patient_age} yrs | {patient_gender}\n"
+                f"🆔 {patient_id} | 📞 {patient_contact}\n"
+                f"🏠 {patient_address}\n\n"
+                f"🩸 Stroke: {stroke_percent:.2f}%\n"
+                f"✅ No Stroke: {no_stroke_percent:.2f}%"
             )
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-            try:
-                response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
-                if response.status_code == 200:
-                    st.success("✅ Patient report sent to Telegram successfully!")
-                    st.session_state.report_log.append(
-                        {
-                            "patient_name": patient_name,
-                            "stroke_percent": stroke_percent,
-                            "no_stroke_percent": no_stroke_percent,
-                            "by": st.session_state.username or "unknown",
-                        }
-                    )
-                else:
-                    st.error("❌ Failed to send report to Telegram.")
-            except Exception as e:
-                st.error(f"❌ Error sending to Telegram: {e}")
+            ok, msg = send_report_to_telegram(message, marked_image)
+            if ok:
+                st.success(msg)
+                st.session_state.report_log.append({
+                    "patient_name": patient_name,
+                    "stroke_percent": stroke_percent,
+                    "no_stroke_percent": no_stroke_percent,
+                    "by": st.session_state.username or "unknown"
+                })
+            else:
+                st.error(msg)
 
-    st.write("---")
-    if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
-        render_appointment_portal()
+# -------------------------
+# User Appointment Booking
+# -------------------------
+def render_appointment_booking():
+    st.subheader("📅 Book Appointment")
 
-    with st.sidebar:
-        st.header("👤 Account")
-        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-        if st.button("🚪 Logout", key="user_logout_btn"):
-            logout()
-          
+    with st.form("appointment_form"):
+        name = st.text_input("Patient Name", value=st.session_state.appt_temp["name"])
+        mobile = st.text_input("Mobile Number", value=st.session_state.appt_temp["mobile"])
+        age = st.number_input("Age", 1, 120, st.session_state.appt_temp["age"])
+        date = st.date_input("Preferred Date")
+        time = st.time_input("Preferred Time")
+        doctor = st.text_input("Doctor's Name")
+
+        submit = st.form_submit_button("✅ Confirm Appointment")
+
+        if submit:
+            appt = {
+                "name": name,
+                "mobile": mobile,
+                "age": age,
+                "date": str(date),
+                "time": str(time),
+                "doctor": doctor,
+                "booked_by": st.session_state.username or "unknown"
+            }
+            st.session_state.appointments.append(appt)
+
+            # send to admin telegram
+            msg = (
+                f"📅 New Appointment\n\n"
+                f"👤 {name} ({age} yrs)\n"
+                f"📞 {mobile}\n"
+                f"🩺 Doctor: {doctor}\n"
+                f"📅 {date} ⏰ {time}"
+            )
+            ok, resp = send_report_to_telegram(msg)
+            if ok:
+                st.success("Appointment booked & sent to admin ✅")
+            else:
+                st.error(f"Failed: {resp}")
+
+# -------------------------
+# Admin Dashboard
+# -------------------------
+def render_admin_dashboard():
+    st.title("🛡 Admin Dashboard")
+
+    st.subheader("📋 Appointment Requests")
+    if not st.session_state.appointments:
+        st.info("No appointments booked yet.")
+    else:
+        for appt in st.session_state.appointments:
+            st.write(
+                f"👤 {appt['name']} ({appt['age']} yrs)\n"
+                f"📞 {appt['mobile']}\n"
+                f"🩺 Doctor: {appt['doctor']}\n"
+                f"📅 {appt['date']} ⏰ {appt['time']}\n"
+                f"Booked by: {appt['booked_by']}"
+            )
+            st.divider()
+
+    st.subheader("🧾 Stroke Reports Log")
+    if not st.session_state.report_log:
+        st.info("No stroke reports yet.")
+    else:
+        for report in st.session_state.report_log:
+            st.write(
+                f"👤 {report['patient_name']}\n"
+                f"🩸 Stroke: {report['stroke_percent']:.2f}% | ✅ No Stroke: {report['no_stroke_percent']:.2f}%\n"
+                f"Submitted by: {report['by']}"
+            )
+            st.divider()
 
 # -------------------------
 # Main Routing
 # -------------------------
 if not st.session_state.logged_in:
-    render_login()
+    st.write("🔐 Please login first (Admin/User).")
 else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
         render_user_app()
-
+        render_appointment_booking()
+        
