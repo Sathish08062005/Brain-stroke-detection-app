@@ -385,7 +385,7 @@ def render_user_app():
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
-            st.rerun()
+            
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
@@ -432,8 +432,7 @@ def render_admin_appointments():
     st.subheader("🩺 Doctor Appointment Requests")
     if not st.session_state.appointments:
         st.info("No appointment requests yet.")
-        return
-
+        
     for idx, appt in enumerate(st.session_state.appointments):
         with st.container():
             st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
