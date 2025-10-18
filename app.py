@@ -634,8 +634,6 @@ def render_user_app():
             logout()
             st.rerun()
 
-import streamlit as st
-
 # -------------------------
 # Initialize session state
 # -------------------------
