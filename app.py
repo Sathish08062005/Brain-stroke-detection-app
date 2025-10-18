@@ -461,23 +461,7 @@ def render_appointment_portal():
             st.write("---")
     else:
         st.info("No appointment requests yet.")
-    for idx, appt in enumerate(st.session_state.appointments):
-        with st.container():
-            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
-            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
-            st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
-            st.write(f"📋 Status: {appt['status']}")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
-                    appt["status"] = "Approved"
-                    st.success(f"Appointment approved for {appt['patient_name']}")
-            with col2:
-                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
-                    appt["status"] = "Rejected"
-                    st.error(f"Appointment rejected for {appt['patient_name']}")
-            st.write("---")
+
 
 # -------------------------
 # Main Routing
