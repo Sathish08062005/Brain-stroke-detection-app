@@ -461,10 +461,10 @@ def render_appointment_portal():
             st.success("✅ Appointment request sent to Admin for approval.")
             # Hide the form and rerun to show admin view updates
             st.session_state.show_appt_form = False
-            st.experimental_rerun()
+            st.rerun()
         if cancel:
             st.session_state.show_appt_form = False
-            st.experimental_rerun()
+            st.rerun()
 
 # -------------------------
 # Admin: Manage Doctor Appointments
