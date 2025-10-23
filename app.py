@@ -249,9 +249,10 @@ def render_admin_dashboard():
             st.rerun()
 
     tabs = st.tabs(
-        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📊 Model Evaluation"]
+        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📊 Confusion Matrix"]
     )
 
+    # --- Create User Tab
     with tabs[0]:
         st.subheader("Create a new user")
         new_username = st.text_input("New Username", key="new_username")
@@ -261,6 +262,7 @@ def render_admin_dashboard():
             ok, msg = add_user(new_username, new_password, role)
             (st.success if ok else st.error)(msg)
 
+    # --- Manage Users Tab
     with tabs[1]:
         st.subheader("All Users")
         users = st.session_state.users
@@ -283,6 +285,7 @@ def render_admin_dashboard():
         else:
             st.info("No users yet.")
 
+    # --- Export/Import Tab
     with tabs[2]:
         st.subheader("Export / Import Users")
         st.download_button(
@@ -297,6 +300,7 @@ def render_admin_dashboard():
             ok, msg = import_users_json(up.read())
             (st.success if ok else st.error)(msg)
 
+    # --- Telegram Settings Tab
     with tabs[3]:
         st.subheader("Telegram Settings")
         bot_token = st.text_input(
@@ -310,15 +314,15 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # -------------------------
-    # Model Evaluation (Confusion Matrix)
-    # -------------------------
+    # --- Confusion Matrix Tab (NEW)
     with tabs[4]:
-        st.subheader("🧮 Model Evaluation - Confusion Matrix")
-        folder = st.file_uploader("Upload Test Dataset CSV (image_path,label)", type=["csv"], key="conf_matrix_csv")
-        if folder is not None:
+        st.subheader("📊 Model Evaluation - Confusion Matrix")
+        uploaded_csv = st.file_uploader(
+            "Upload Test Dataset CSV (image_path,label)", type=["csv"], key="conf_matrix_csv"
+        )
+        if uploaded_csv is not None:
             try:
-                df = pd.read_csv(folder)
+                df = pd.read_csv(uploaded_csv)
                 if {"image_path","label"}.issubset(df.columns):
                     y_true = []
                     y_pred = []
@@ -341,7 +345,6 @@ def render_admin_dashboard():
 
                     acc = np.mean(np.array(y_true) == np.array(y_pred))
                     st.info(f"✅ Model Accuracy on Test Set: {acc*100:.2f}%")
-
                 else:
                     st.error("CSV must contain 'image_path' and 'label' columns.")
             except Exception as e:
@@ -363,28 +366,6 @@ def render_admin_dashboard():
 
 
 # -------------------------
-# Stroke App Main UI
-# -------------------------
-def render_user_app():
-    # [All your existing user app code stays here exactly as you provided]
-    # Including patient upload, classification, stroke region highlighting, telegram, appointments, and post-stroke care
-    pass  # Placeholder for brevity; insert your full render_user_app() code here
-
-
-# -------------------------
-# Doctor Appointment Portal & Admin functions
-# -------------------------
-def render_appointment_portal():
-    pass  # Keep your existing function
-
-def render_admin_appointments():
-    pass  # Keep your existing function
-
-def render_post_stroke_care():
-    pass  # Keep your existing function
-
-
-# -------------------------
 # Main Routing
 # -------------------------
 if not st.session_state.logged_in:
@@ -393,4 +374,6 @@ else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
+        # Load your existing user app code unchanged
+        from user_app import render_user_app
         render_user_app()
