@@ -402,7 +402,7 @@ def render_user_app():
     # Use a button to open the appointment modal (form)
     if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
         st.session_state.show_appt_form = True
-        st.experimental_rerun()
+        st.rerun()
 
     with st.sidebar:
         st.header("👤 Account")
@@ -490,19 +490,19 @@ def render_admin_appointments():
                     st.session_state.appointments[idx]["status"] = "Approved"
                     save_appointments_to_file()
                     st.success(f"Appointment approved for {appt['patient_name']}")
-                    st.experimental_rerun()
+                    st.rerun()
             with col2:
                 if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Rejected"
                     save_appointments_to_file()
                     st.error(f"Appointment rejected for {appt['patient_name']}")
-                    st.experimental_rerun()
+                    st.rerun()
             with col3:
                 if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}"):
                     removed = st.session_state.appointments.pop(idx)
                     save_appointments_to_file()
                     st.info(f"Deleted appointment for {removed['patient_name']}")
-                    st.experimental_rerun()
+                    st.rerun()
             st.write("---")
 
 # -------------------------
