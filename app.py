@@ -14,12 +14,14 @@ from tensorflow.keras.preprocessing.image import img_to_array
 USERS_FILE = "users.json"
 APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
 
+
 def save_users_to_file():
     try:
         with open(USERS_FILE, "w") as f:
             json.dump(st.session_state.users, f, indent=2)
     except Exception as e:
         st.error(f"Error saving users file: {e}")
+
 
 # Appointment persistence helpers
 def save_appointments_to_file():
@@ -28,6 +30,7 @@ def save_appointments_to_file():
             json.dump(st.session_state.appointments, f, indent=2)
     except Exception as e:
         st.error(f"Error saving appointments file: {e}")
+
 
 def load_appointments_from_file():
     if os.path.exists(APPOINTMENTS_FILE):
@@ -40,6 +43,7 @@ def load_appointments_from_file():
             return []
     return []
 
+
 # -------------------------
 # Page Config
 # -------------------------
@@ -49,9 +53,9 @@ st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 # App Branding
 # -------------------------
 st.markdown(
-    """
-    <h2 style="text-align:center;">🧠 NeuroNexusAI</h2>
-    """,
+    """ 
+#  🧠 NeuroNexusAI 
+ """,
     unsafe_allow_html=True,
 )
 
@@ -66,11 +70,14 @@ if not os.path.exists(MODEL_PATH):
     with st.spinner("⬇ Downloading stroke model... please wait ⏳"):
         gdown.download(DRIVE_URL, MODEL_PATH, quiet=False)
 
+
 @st.cache_resource(show_spinner=False)
 def load_stroke_model():
     return load_model(MODEL_PATH)
 
+
 model = load_stroke_model()
+
 
 # -------------------------
 # Preprocess image for classification
@@ -82,12 +89,14 @@ def preprocess_image(image):
     image = np.expand_dims(image, axis=0)
     return image
 
+
 def classify_image(image):
     processed = preprocess_image(image)
     prediction = model.predict(processed)[0][0]
     stroke_prob = float(prediction)
     no_stroke_prob = 1 - stroke_prob
     return stroke_prob, no_stroke_prob
+
 
 def highlight_stroke_regions(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -100,6 +109,7 @@ def highlight_stroke_regions(image):
             cv2.drawContours(mask, [cnt], -1, (0, 0, 255), -1)
     highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
     return highlighted
+
 
 # -------------------------
 # Auth state
@@ -134,7 +144,9 @@ def ensure_state():
     if "appointments" not in st.session_state:
         st.session_state.appointments = load_appointments_from_file()
 
+
 ensure_state()
+
 
 # -------------------------
 # Auth functions
@@ -148,10 +160,12 @@ def login(username, password):
         return True
     return False
 
+
 def logout():
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
+
 
 def add_user(new_username, new_password, role="user"):
     if not new_username or not new_password:
@@ -162,6 +176,7 @@ def add_user(new_username, new_password, role="user"):
     save_users_to_file()
     return True, f"User '{new_username}' created."
 
+
 def delete_user(username):
     if username == "Sathish":
         return False, "Cannot delete the default admin."
@@ -171,6 +186,7 @@ def delete_user(username):
     save_users_to_file()
     return True, f"User '{username}' deleted."
 
+
 def reset_password(username, new_password):
     if username not in st.session_state.users:
         return False, "User not found."
@@ -178,8 +194,10 @@ def reset_password(username, new_password):
     save_users_to_file()
     return True, f"Password reset for '{username}'."
 
+
 def export_users_json():
     return json.dumps(st.session_state.users, indent=2)
+
 
 def import_users_json(file_bytes):
     try:
@@ -192,6 +210,7 @@ def import_users_json(file_bytes):
         return True, "Users imported."
     except Exception as e:
         return False, f"Import failed: {e}"
+
 
 # -------------------------
 # UI: Login
@@ -211,6 +230,7 @@ def render_login():
     with colB:
         st.caption("No registration here. Users must be created by the admin.")
 
+
 # -------------------------
 # Admin Dashboard
 # -------------------------
@@ -224,7 +244,9 @@ def render_admin_dashboard():
             logout()
             st.rerun()
 
-    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"])
+    tabs = st.tabs(
+        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"]
+    )
 
     with tabs[0]:
         st.subheader("Create a new user")
@@ -244,7 +266,9 @@ def render_admin_dashboard():
                 cols[0].write(f"{uname}")
                 cols[1].write(meta["role"])
                 with cols[2]:
-                    new_pw = st.text_input(f"New Password for {uname}", key=f"pw_{uname}", type="password")
+                    new_pw = st.text_input(
+                        f"New Password for {uname}", key=f"pw_{uname}", type="password"
+                    )
                     if st.button(f"Reset Password: {uname}", key=f"btn_reset_{uname}"):
                         ok, msg = reset_password(uname, new_pw)
                         (st.success if ok else st.error)(msg)
@@ -262,7 +286,7 @@ def render_admin_dashboard():
             data=export_users_json(),
             file_name="users.json",
             mime="application/json",
-            key="download_users_btn"
+            key="download_users_btn",
         )
         up = st.file_uploader("Import users.json", type=["json"], key="import_users_uploader")
         if up is not None:
@@ -271,8 +295,12 @@ def render_admin_dashboard():
 
     with tabs[3]:
         st.subheader("Telegram Settings")
-        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token")
-        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="chat_id")
+        bot_token = st.text_input(
+            "BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token"
+        )
+        chat_id = st.text_input(
+            "CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="chat_id"
+        )
         if st.button("Save Telegram Settings", key="save_telegram_btn"):
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
@@ -292,8 +320,9 @@ def render_admin_dashboard():
     else:
         st.caption("No reports yet.")
 
+
 # -------------------------
-# Stroke App Main UI (User Side)
+# Stroke App Main UI
 # -------------------------
 def render_user_app():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
@@ -367,6 +396,7 @@ def render_user_app():
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
+
             message = (
                 "🧾 Patient Stroke Report\n\n"
                 f"👤 Name: {patient_name}\n"
@@ -397,29 +427,26 @@ def render_user_app():
                 st.error(f"❌ Error sending to Telegram: {e}")
 
     st.write("---")
-
-    # Show user's appointment request status
-    st.subheader("📅 Your Appointment Requests")
-    user_appts = [a for a in st.session_state.appointments if a.get("requested_by") == st.session_state.username]
-    if not user_appts:
-        st.info("You have not made any appointment requests yet.")
-    else:
-        for a in user_appts:
-            status = a.get("status", "Pending")
-            if status == "Approved":
-                color = "🟢 Approved"
-            elif status == "Rejected":
-                color = "🔴 Rejected"
-            else:
-                color = "🟡 Pending"
-            st.write(
-                f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → **{color}**"
-            )
-
-    # Appointment button
     if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
         st.session_state.show_appt_form = True
         st.rerun()
+
+    # Show current appointment status for this user
+    st.write("### 📅 Your Appointment Requests")
+    user_appts = [
+        a for a in st.session_state.appointments if a.get("requested_by") == st.session_state.username
+    ]
+    if not user_appts:
+        st.info("No appointment requests yet.")
+    else:
+        for a in user_appts[::-1]:
+            status = a.get("status", "Pending")
+            color = "🔴 Rejected" if status == "Rejected" else (
+                "🟢 Approved" if status == "Approved" else "🟡 Pending"
+            )
+            st.write(
+                f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → **{color}**"
+            )
 
     with st.sidebar:
         st.header("👤 Account")
@@ -431,8 +458,9 @@ def render_user_app():
     if st.session_state.get("show_appt_form", False):
         render_appointment_portal()
 
+
 # -------------------------
-# Doctor Appointment Portal
+# Doctor Appointment Portal (User Side)
 # -------------------------
 def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
@@ -480,8 +508,9 @@ def render_appointment_portal():
             st.session_state.show_appt_form = False
             st.rerun()
 
+
 # -------------------------
-# Admin: Manage Doctor Appointments
+# Admin: Manage Doctor Appointments (color-coded buttons)
 # -------------------------
 def render_admin_appointments():
     st.subheader("🩺 Doctor Appointment Requests")
@@ -499,24 +528,25 @@ def render_admin_appointments():
             st.write(f"📋 Status: {appt.get('status', 'Pending')}")
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
-                if st.button(f"✅ Approve_{idx}", key=f"approve_{idx}", help="Approve appointment"):
+                if st.button(f"✅ Approve_{idx}", key=f"approve_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Approved"
                     save_appointments_to_file()
-                    st.success(f"✅ Appointment approved for {appt['patient_name']}")
+                    st.success(f"Appointment approved for {appt['patient_name']}")
                     st.rerun()
             with col2:
-                if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}", help="Reject appointment"):
+                if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Rejected"
                     save_appointments_to_file()
-                    st.error(f"❌ Appointment rejected for {appt['patient_name']}")
+                    st.error(f"Appointment rejected for {appt['patient_name']}")
                     st.rerun()
             with col3:
-                if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}", help="Delete appointment"):
+                if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}"):
                     removed = st.session_state.appointments.pop(idx)
                     save_appointments_to_file()
-                    st.info(f"🗑 Deleted appointment for {removed['patient_name']}")
+                    st.info(f"Deleted appointment for {removed['patient_name']}")
                     st.rerun()
             st.write("---")
+
 
 # -------------------------
 # Main Routing
