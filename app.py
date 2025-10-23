@@ -12,23 +12,31 @@ from tensorflow.keras.preprocessing.image import img_to_array
 # Users & Appointments file for persistence
 # -------------------------
 USERS_FILE = "users.json"
-APPOINTMENTS_FILE = "appointments.json"  # 🆕 Added for appointment persistence
+APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
 
 def save_users_to_file():
-    with open(USERS_FILE, "w") as f:
-        json.dump(st.session_state.users, f, indent=2)
+    try:
+        with open(USERS_FILE, "w") as f:
+            json.dump(st.session_state.users, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving users file: {e}")
 
-# 🆕 Added - Appointment file persistence functions
+# Appointment persistence helpers
 def save_appointments_to_file():
-    with open(APPOINTMENTS_FILE, "w") as f:
-        json.dump(st.session_state.appointments, f, indent=2)
+    try:
+        with open(APPOINTMENTS_FILE, "w") as f:
+            json.dump(st.session_state.appointments, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving appointments file: {e}")
 
 def load_appointments_from_file():
     if os.path.exists(APPOINTMENTS_FILE):
         try:
             with open(APPOINTMENTS_FILE, "r") as f:
-                return json.load(f)
-        except:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
             return []
     return []
 
@@ -123,8 +131,7 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-
-    # 🆕 Doctor appointment storage (persistent)
+    # Load persistent appointments
     if "appointments" not in st.session_state:
         st.session_state.appointments = load_appointments_from_file()
 
@@ -272,7 +279,7 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # 🆕 Doctor Appointment Management (admin view)
+    # Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -392,8 +399,10 @@ def render_user_app():
                 st.error(f"❌ Error sending to Telegram: {e}")
 
     st.write("---")
+    # Use a button to open the appointment modal (form)
     if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
-        render_appointment_portal()
+        st.session_state.show_appt_form = True
+        st.experimental_rerun()
 
     with st.sidebar:
         st.header("👤 Account")
@@ -402,61 +411,102 @@ def render_user_app():
             logout()
             st.rerun()
 
+    # Show form inline if requested
+    if st.session_state.get("show_appt_form", False):
+        render_appointment_portal()
+
 # -------------------------
-# Doctor Appointment Portal (User Side)
+# Doctor Appointment Portal (User Side) - uses st.form for stable behavior
 # -------------------------
 def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
-        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
-        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
-    with col2:
-        appointment_date = st.date_input("Appointment Date", key="appt_date")
-        appointment_time = st.time_input("Preferred Time", key="appt_time")
-        doctor_type = st.selectbox("Doctor Type", ["Neurologist", "Radiologist"], key="appt_doctor_type")
+    with st.form(key="appointment_form", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            appt_patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
+            appt_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
+            appt_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
+        with col2:
+            appt_date = st.date_input("Appointment Date", key="appt_date")
+            appt_time = st.time_input("Preferred Time", key="appt_time")
+            doctor = st.selectbox(
+                "Select Doctor",
+                [
+                    "Dr. Ramesh (Neurologist, Apollo)",
+                    "Dr. Priya (Radiologist, Fortis)",
+                    "Dr. Kumar (Stroke Specialist, MIOT)",
+                    "Dr. Divya (CT Analysis Expert, Kauvery)",
+                ],
+                key="appt_doctor",
+            )
+        submit = st.form_submit_button("📩 Send Appointment Request")
+        cancel = st.form_submit_button("✖ Cancel")
 
-    st.write("---")
-
-    if st.button("📅 Confirm Appointment", key="confirm_appointment_btn"):
-        appt = {
-            "patient_name": patient_name,
-            "mobile": patient_mobile,
-            "age": patient_age,
-            "date": str(appointment_date),
-            "time": str(appointment_time),
-            "doctor_type": doctor_type,
-            "created_by": st.session_state.username,
-        }
-        st.session_state.appointments.append(appt)
-        save_appointments_to_file()  # 🆕 Persist appointment
-        st.success(f"✅ Appointment confirmed with {doctor_type} on {appointment_date} at {appointment_time}.")
-        st.balloons()
+        if submit:
+            # Create appointment object with status and metadata
+            appt = {
+                "patient_name": appt_patient_name,
+                "mobile": appt_mobile,
+                "age": appt_age,
+                "date": str(appt_date),
+                "time": str(appt_time),
+                "doctor": doctor,
+                "status": "Pending",
+                "requested_by": st.session_state.username or "unknown",
+            }
+            st.session_state.appointments.append(appt)
+            save_appointments_to_file()
+            st.success("✅ Appointment request sent to Admin for approval.")
+            # Hide the form and rerun to show admin view updates
+            st.session_state.show_appt_form = False
+            st.experimental_rerun()
+        if cancel:
+            st.session_state.show_appt_form = False
+            st.experimental_rerun()
 
 # -------------------------
-# Doctor Appointment View (Admin Side)
+# Admin: Manage Doctor Appointments
 # -------------------------
 def render_admin_appointments():
-    appointments = st.session_state.appointments
-    if not appointments:
-        st.info("No appointments booked yet.")
+    st.subheader("🩺 Doctor Appointment Requests")
+    if not st.session_state.appointments:
+        st.info("No appointment requests yet.")
         return
-    for i, appt in enumerate(appointments, 1):
-        st.markdown(
-            f"""
-            **{i}. {appt['patient_name']}**  
-            📞 {appt['mobile']} | 🎂 {appt['age']}  
-            🗓 {appt['date']} ⏰ {appt['time']}  
-            👨‍⚕️ {appt['doctor_type']} | 🧾 Booked by: {appt['created_by']}
-            """
-        )
-        st.write("---")
+
+    # display each appointment with Approve/Reject buttons using stable keys
+    for idx, appt in enumerate(st.session_state.appointments):
+        container = st.container()
+        with container:
+            st.write(f"**Patient:** {appt['patient_name']} ({appt.get('age', '')} yrs)")
+            st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
+            st.write(f"🗓 {appt['date']} at {appt['time']}")
+            st.write(f"🧑‍💻 Requested by: {appt.get('requested_by', 'unknown')}")
+            st.write(f"📋 Status: {appt.get('status', 'Pending')}")
+            col1, col2, col3 = st.columns([1,1,1])
+            with col1:
+                if st.button(f"✅ Approve_{idx}", key=f"approve_{idx}"):
+                    st.session_state.appointments[idx]["status"] = "Approved"
+                    save_appointments_to_file()
+                    st.success(f"Appointment approved for {appt['patient_name']}")
+                    st.experimental_rerun()
+            with col2:
+                if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}"):
+                    st.session_state.appointments[idx]["status"] = "Rejected"
+                    save_appointments_to_file()
+                    st.error(f"Appointment rejected for {appt['patient_name']}")
+                    st.experimental_rerun()
+            with col3:
+                if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}"):
+                    removed = st.session_state.appointments.pop(idx)
+                    save_appointments_to_file()
+                    st.info(f"Deleted appointment for {removed['patient_name']}")
+                    st.experimental_rerun()
+            st.write("---")
 
 # -------------------------
-# Main Entry
+# Main Routing
 # -------------------------
 if not st.session_state.logged_in:
     render_login()
