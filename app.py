@@ -458,6 +458,11 @@ def render_user_app():
     if st.session_state.get("show_appt_form", False):
         render_appointment_portal()
 
+    # -------------------------
+    # Post-Stroke Care & Lifestyle Recommendations
+    # -------------------------
+    render_post_stroke_care()
+
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
@@ -546,6 +551,53 @@ def render_admin_appointments():
                     st.info(f"Deleted appointment for {removed['patient_name']}")
                     st.rerun()
             st.write("---")
+
+
+# -------------------------
+# Post-Stroke Care Recommendations Function
+# -------------------------
+def render_post_stroke_care():
+    st.title("🌿 Post-Stroke Care & Lifestyle Recommendations")
+    st.write(
+        "After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. "
+        "Here are some important suggestions:"
+    )
+
+    with st.expander("🥗 Nutrition & Foods"):
+        st.markdown("""
+        - **Fruits & Vegetables:** Fresh fruits (berries, oranges, apples) and leafy greens.  
+        - **Whole Grains:** Brown rice, oats, whole wheat bread.  
+        - **Proteins:** Fish rich in Omega-3 (salmon, sardines), eggs, legumes.  
+        - **Nuts & Seeds:** Almonds, walnuts, flaxseeds — in moderation.  
+        - **Limit:** Salt, fried foods, processed foods, and sugary snacks.  
+        - **Hydration:** Drink plenty of water and natural juices (avoid added sugar).
+        """)
+
+    with st.expander("🧘 Physical & Mental Exercises"):
+        st.markdown("""
+        - **Yoga & Stretching:** Gentle yoga and flexibility exercises to improve mobility.  
+        - **Walking & Aerobics:** Short walks, light aerobic exercises as tolerated.  
+        - **Balance & Coordination Exercises:** Helps prevent falls.  
+        - **Breathing Exercises / Pranayama:** Enhances oxygenation and reduces stress.  
+        - **Meditation & Mindfulness:** Supports mental health, reduces anxiety and depression.
+        """)
+
+    with st.expander("💊 Lifestyle & Habits"):
+        st.markdown("""
+        - **Sleep:** Maintain regular sleep cycles (7–8 hours).  
+        - **Stress Management:** Meditation, counseling, music therapy.  
+        - **Regular Check-ups:** Monitor blood pressure, cholesterol, and blood sugar.  
+        - **Avoid Smoking & Alcohol:** Critical for stroke prevention and recovery.  
+        - **Follow Doctor’s Advice:** Stick to prescribed medications and rehabilitation programs.
+        """)
+
+    with st.expander("📚 Additional Tips"):
+        st.markdown("""
+        - Keep a **recovery journal** for diet, exercise, and mood tracking.  
+        - Engage in **social support**: family, stroke support groups.  
+        - Stay **mentally active**: puzzles, reading, cognitive exercises.  
+        - **Small, consistent steps**: recovery is gradual; consistency matters.
+        """)
 
 
 # -------------------------
