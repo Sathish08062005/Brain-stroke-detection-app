@@ -9,13 +9,36 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
 # -------------------------
-# Users file for persistence
+# Users & Appointments file for persistence
 # -------------------------
 USERS_FILE = "users.json"
+APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
 
 def save_users_to_file():
-    with open(USERS_FILE, "w") as f:
-        json.dump(st.session_state.users, f, indent=2)
+    try:
+        with open(USERS_FILE, "w") as f:
+            json.dump(st.session_state.users, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving users file: {e}")
+
+# Appointment persistence helpers
+def save_appointments_to_file():
+    try:
+        with open(APPOINTMENTS_FILE, "w") as f:
+            json.dump(st.session_state.appointments, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving appointments file: {e}")
+
+def load_appointments_from_file():
+    if os.path.exists(APPOINTMENTS_FILE):
+        try:
+            with open(APPOINTMENTS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
 
 # -------------------------
 # Page Config
@@ -26,9 +49,9 @@ st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 # App Branding
 # -------------------------
 st.markdown(
-    """ 
-#  🧠 NeuroNexusAI 
- """,
+    """
+    <h2 style="text-align:center;">🧠 NeuroNexusAI</h2>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -36,7 +59,7 @@ st.markdown(
 # Load trained classification model
 # -------------------------
 MODEL_PATH = "stroke_model.h5"
-DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"  # replace with your file ID
+DRIVE_FILE_ID = "12Azoft-5R2x8uDTMr2wkTQIHT-c2274z"
 DRIVE_URL = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
@@ -108,10 +131,8 @@ def ensure_state():
         }
     if "report_log" not in st.session_state:
         st.session_state.report_log = []
-
-    # 🆕 Added: Doctor appointment storage
     if "appointments" not in st.session_state:
-        st.session_state.appointments = []
+        st.session_state.appointments = load_appointments_from_file()
 
 ensure_state()
 
@@ -257,7 +278,7 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # 🆕 Doctor Appointment Management (admin view)
+    # Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
 
@@ -272,7 +293,7 @@ def render_admin_dashboard():
         st.caption("No reports yet.")
 
 # -------------------------
-# Stroke App Main UI
+# Stroke App Main UI (User Side)
 # -------------------------
 def render_user_app():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
@@ -346,7 +367,6 @@ def render_user_app():
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
-
             message = (
                 "🧾 Patient Stroke Report\n\n"
                 f"👤 Name: {patient_name}\n"
@@ -377,8 +397,29 @@ def render_user_app():
                 st.error(f"❌ Error sending to Telegram: {e}")
 
     st.write("---")
+
+    # Show user's appointment request status
+    st.subheader("📅 Your Appointment Requests")
+    user_appts = [a for a in st.session_state.appointments if a.get("requested_by") == st.session_state.username]
+    if not user_appts:
+        st.info("You have not made any appointment requests yet.")
+    else:
+        for a in user_appts:
+            status = a.get("status", "Pending")
+            if status == "Approved":
+                color = "🟢 Approved"
+            elif status == "Rejected":
+                color = "🔴 Rejected"
+            else:
+                color = "🟡 Pending"
+            st.write(
+                f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → **{color}**"
+            )
+
+    # Appointment button
     if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
-        render_appointment_portal()
+        st.session_state.show_appt_form = True
+        st.rerun()
 
     with st.sidebar:
         st.header("👤 Account")
@@ -387,46 +428,57 @@ def render_user_app():
             logout()
             st.rerun()
 
+    if st.session_state.get("show_appt_form", False):
+        render_appointment_portal()
+
 # -------------------------
-# Doctor Appointment Portal (User Side)
+# Doctor Appointment Portal
 # -------------------------
 def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
-        patient_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
-        patient_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
-    with col2:
-        appointment_date = st.date_input("Appointment Date", key="appt_date")
-        appointment_time = st.time_input("Preferred Time", key="appt_time")
+    with st.form(key="appointment_form", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            appt_patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
+            appt_mobile = st.text_input("Mobile Number", value="9876543210", key="appt_patient_mobile")
+            appt_age = st.number_input("Age", min_value=1, max_value=120, value=45, key="appt_patient_age")
+        with col2:
+            appt_date = st.date_input("Appointment Date", key="appt_date")
+            appt_time = st.time_input("Preferred Time", key="appt_time")
+            doctor = st.selectbox(
+                "Select Doctor",
+                [
+                    "Dr. Ramesh (Neurologist, Apollo)",
+                    "Dr. Priya (Radiologist, Fortis)",
+                    "Dr. Kumar (Stroke Specialist, MIOT)",
+                    "Dr. Divya (CT Analysis Expert, Kauvery)",
+                ],
+                key="appt_doctor",
+            )
+        submit = st.form_submit_button("📩 Send Appointment Request")
+        cancel = st.form_submit_button("✖ Cancel")
 
-    doctor = st.selectbox(
-        "Select Doctor",
-        [
-            "Dr. Ramesh (Neurologist, Apollo)",
-            "Dr. Priya (Radiologist, Fortis)",
-            "Dr. Kumar (Stroke Specialist, MIOT)",
-            "Dr. Divya (CT Analysis Expert, Kauvery)",
-        ],
-        key="appt_doctor",
-    )
-
-    if st.button("📩 Send Appointment Request", key="send_appt_btn"):
-        appt = {
-            "patient_name": patient_name,
-            "mobile": patient_mobile,
-            "age": patient_age,
-            "date": str(appointment_date),
-            "time": str(appointment_time),
-            "doctor": doctor,
-            "status": "Pending",
-            "requested_by": st.session_state.username,
-        }
-        st.session_state.appointments.append(appt)
-        st.success("✅ Appointment request sent to Admin for approval.")
+        if submit:
+            appt = {
+                "patient_name": appt_patient_name,
+                "mobile": appt_mobile,
+                "age": appt_age,
+                "date": str(appt_date),
+                "time": str(appt_time),
+                "doctor": doctor,
+                "status": "Pending",
+                "requested_by": st.session_state.username or "unknown",
+            }
+            st.session_state.appointments.append(appt)
+            save_appointments_to_file()
+            st.success("✅ Appointment request sent to Admin for approval.")
+            st.session_state.show_appt_form = False
+            st.rerun()
+        if cancel:
+            st.session_state.show_appt_form = False
+            st.rerun()
 
 # -------------------------
 # Admin: Manage Doctor Appointments
@@ -438,21 +490,32 @@ def render_admin_appointments():
         return
 
     for idx, appt in enumerate(st.session_state.appointments):
-        with st.container():
-            st.write(f"**Patient:** {appt['patient_name']} ({appt['age']} yrs)")
+        container = st.container()
+        with container:
+            st.write(f"Patient: {appt['patient_name']} ({appt.get('age', '')} yrs)")
             st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
             st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt['requested_by']}")
-            st.write(f"📋 Status: {appt['status']}")
-            col1, col2 = st.columns(2)
+            st.write(f"🧑‍💻 Requested by: {appt.get('requested_by', 'unknown')}")
+            st.write(f"📋 Status: {appt.get('status', 'Pending')}")
+            col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
-                if st.button(f"✅ Approve {idx}", key=f"approve_{idx}"):
-                    appt["status"] = "Approved"
-                    st.success(f"Appointment approved for {appt['patient_name']}")
+                if st.button(f"✅ Approve_{idx}", key=f"approve_{idx}", help="Approve appointment"):
+                    st.session_state.appointments[idx]["status"] = "Approved"
+                    save_appointments_to_file()
+                    st.success(f"✅ Appointment approved for {appt['patient_name']}")
+                    st.rerun()
             with col2:
-                if st.button(f"❌ Reject {idx}", key=f"reject_{idx}"):
-                    appt["status"] = "Rejected"
-                    st.error(f"Appointment rejected for {appt['patient_name']}")
+                if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}", help="Reject appointment"):
+                    st.session_state.appointments[idx]["status"] = "Rejected"
+                    save_appointments_to_file()
+                    st.error(f"❌ Appointment rejected for {appt['patient_name']}")
+                    st.rerun()
+            with col3:
+                if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}", help="Delete appointment"):
+                    removed = st.session_state.appointments.pop(idx)
+                    save_appointments_to_file()
+                    st.info(f"🗑 Deleted appointment for {removed['patient_name']}")
+                    st.rerun()
             st.write("---")
 
 # -------------------------
@@ -464,4 +527,4 @@ else:
     if st.session_state.role == "admin":
         render_admin_dashboard()
     else:
-        render_user_app() 
+        render_user_app()
