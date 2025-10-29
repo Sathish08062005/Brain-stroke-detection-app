@@ -461,15 +461,7 @@ def render_user_app():
             st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
-    # ---------- MULTI-UPLOAD (added) ----------
-    uploaded_files = st.file_uploader(
-        "📤 Upload CT/MRI Image(s) (multiple allowed)",
-        type=["jpg", "jpeg", "png", "bmp", "tif", "tiff", "dcm"],
-        accept_multiple_files=True,
-        key="upload_scan_multi"
-    )
-
-    # containers to collect evaluation information
+       # containers to collect evaluation information
     eval_image_names = []
     eval_y_true = []
     eval_y_pred = []
