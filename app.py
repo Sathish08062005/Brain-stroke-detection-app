@@ -11,6 +11,35 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import pandas as pd
+# -------------------------
+# Confusion Matrix + ROC Function
+# -------------------------
+def show_confusion_matrix_and_roc(y_true, y_pred, y_prob=None):
+    st.subheader("📊 Model Evaluation")
+
+    # --- Confusion Matrix ---
+    cm = confusion_matrix(y_true, y_pred)
+    st.write("### Confusion Matrix")
+    fig, ax = plt.subplots(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
+    ax.set_xlabel("Predicted Labels")
+    ax.set_ylabel("True Labels")
+    st.pyplot(fig)
+
+    # --- ROC Curve ---
+    if y_prob is not None:
+        fpr, tpr, _ = roc_curve(y_true, y_prob)
+        roc_auc = auc(fpr, tpr)
+        st.write("### ROC Curve")
+        fig2, ax2 = plt.subplots(figsize=(5, 4))
+        ax2.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+        ax2.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        ax2.set_xlabel("False Positive Rate")
+        ax2.set_ylabel("True Positive Rate")
+        ax2.legend()
+        st.pyplot(fig2)
+    else:
+        st.info("ROC Curve not displayed — probability values not provided.")
 
 # -------------------------
 # Users & Appointments file for persistence
