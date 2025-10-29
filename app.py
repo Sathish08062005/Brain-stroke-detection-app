@@ -8,10 +8,7 @@ import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, roc_curve, auc, classification_report
-
-
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve, auc
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -47,6 +44,35 @@ def load_appointments_from_file():
         except Exception:
             return []
     return []
+
+
+# -------------------------
+# Plot confusion matrix
+# -------------------------
+def plot_confusion_matrix(y_true, y_pred, labels=["No Stroke", "Stroke"]):
+    cm = confusion_matrix(y_true, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    fig, ax = plt.subplots()
+    disp.plot(ax=ax, cmap=plt.cm.Blues)
+    st.pyplot(fig)
+
+
+# -------------------------
+# Plot ROC curve
+# -------------------------
+def plot_roc_curve(y_true, y_scores):
+    fpr, tpr, _ = roc_curve(y_true, y_scores)
+    roc_auc = auc(fpr, tpr)
+    fig, ax = plt.subplots()
+    ax.plot(fpr, tpr, color='darkorange', lw=2, label=f"ROC curve (area = {roc_auc:.2f})")
+    ax.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_title("Receiver Operating Characteristic")
+    ax.legend(loc="lower right")
+    st.pyplot(fig)
 
 
 # -------------------------
@@ -117,7 +143,7 @@ def highlight_stroke_regions(image):
 
 
 # -------------------------
-# Auth state
+# Auth state and functions
 # -------------------------
 def ensure_state():
     if "logged_in" not in st.session_state:
@@ -153,9 +179,6 @@ def ensure_state():
 ensure_state()
 
 
-# -------------------------
-# Auth functions
-# -------------------------
 def login(username, password):
     users = st.session_state.users
     if username in users and users[username]["password"] == password:
@@ -229,7 +252,7 @@ def render_login():
         if st.button("Login", use_container_width=True, key="login_btn"):
             if login(username, password):
                 st.success("Login successful ✅")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("❌ Invalid Username or Password")
     with colB:
@@ -247,7 +270,7 @@ def render_admin_dashboard():
         st.header("⚙ Admin Actions")
         if st.button("🚪 Logout", key="admin_logout_btn"):
             logout()
-            st.rerun()
+            st.experimental_rerun()
 
     tabs = st.tabs(
         ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"]
@@ -311,266 +334,6 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # --- Confusion Matrix Tab (NEW) - admin-side CSV-based option retained for admins
-    with tabs[4]:
-        st.subheader("📊 Model Evaluation - Confusion Matrix (Admin)")
-        uploaded_csv = st.file_uploader(
-            "Upload Test Dataset CSV (image_path,label)", type=["csv"], key="conf_matrix_csv_admin"
-        )
-        if uploaded_csv is not None:
-            try:
-                import pandas as pd
-                df = pd.read_csv(uploaded_csv)
-                if {"image_path", "label"}.issubset(df.columns):
-                    y_true = []
-                    y_pred = []
-                    y_prob = []
-                    for _, row in df.iterrows():
-                        img_path = row["image_path"]
-                        label = row["label"]
-                        if os.path.exists(img_path):
-                            img = cv2.imread(img_path)
-                            pred_stroke_prob, _ = classify_image(img)
-                            pred_label = int(pred_stroke_prob > 0.5)
-                            y_true.append(int(label))
-                            y_pred.append(pred_label)
-                            y_prob.append(pred_stroke_prob)
-                    if len(y_true) > 0:
-                        cm = confusion_matrix(y_true, y_pred)
-                        fig, ax = plt.subplots(figsize=(5, 4))
-                        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-                                    xticklabels=["No Stroke", "Stroke"], yticklabels=["No Stroke", "Stroke"], ax=ax)
-                        ax.set_xlabel("Predicted")
-                        ax.set_ylabel("Actual")
-                        st.pyplot(fig)
-
-                        acc = accuracy_score(y_true, y_pred)
-                        prec = precision_score(y_true, y_pred, zero_division=0)
-                        rec = recall_score(y_true, y_pred, zero_division=0)
-                        st.write(f"**✅ Accuracy:** {acc * 100:.2f}%")
-                        st.write(f"**🎯 Precision:** {prec * 100:.2f}%")
-                        st.write(f"**🔁 Recall:** {rec * 100:.2f}%")
-
-                        # ROC
-                        if len(y_prob) > 1 and len(set(y_true)) > 1:
-                            fpr, tpr, _ = roc_curve(y_true, y_prob)
-                            roc_auc = auc(fpr, tpr)
-                            st.write("### 📈 ROC Curve")
-                            fig2, ax2 = plt.subplots()
-                            ax2.plot(fpr, tpr, label=f"ROC Curve (AUC = {roc_auc:.2f})")
-                            ax2.plot([0, 1], [0, 1], linestyle="--", color="gray")
-                            ax2.set_xlabel("False Positive Rate")
-                            ax2.set_ylabel("True Positive Rate")
-                            ax2.legend()
-                            st.pyplot(fig2)
-                    else:
-                        st.error("No valid images found from CSV paths.")
-                else:
-                    st.error("CSV must contain 'image_path' and 'label' columns.")
-            except Exception as e:
-                st.error(f"Error reading CSV: {e}")
-
-    # Doctor Appointment Management (admin view)
-    with st.expander("🩺 View Doctor Appointments"):
-        render_admin_appointments()
-
-    st.divider()
-    st.subheader("📝 Recently Sent Reports")
-    if st.session_state.report_log:
-        for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
-            st.write(
-                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
-            )
-    else:
-        st.caption("No reports yet.")
-
-
-# -------------------------
-# Stroke App Main UI
-# -------------------------
-def render_user_app():
-    st.title("🧠 Stroke Detection from CT/MRI Scans")
-    st.write("Upload one or multiple brain scan images to check stroke probability and view affected regions.")
-    st.write("You can upload JPG/JPEG/PNG/BMP/TIFF/.dcm. For DICOM support install `pydicom`.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        patient_name = st.text_input("Patient Name", value="John Doe", key="user_patient_name")
-        patient_age = st.number_input("Patient Age", min_value=1, max_value=120, value=45, key="user_patient_age")
-        patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="user_patient_gender")
-    with col2:
-        patient_id = st.text_input("Patient ID / Hospital No.", value="P12345", key="user_patient_id")
-        patient_contact = st.text_input("Patient Contact Number", value="9876543210", key="user_patient_contact")
-        patient_address = st.text_area("Patient Address", value="Chennai, India", key="user_patient_address")
-
-    st.write("---")
-
-    st.sidebar.header("📞 Emergency Contact Settings")
-    relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
-    relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
-
-    # ---------- MULTI-UPLOAD (added) ----------
-    uploaded_files = st.file_uploader(
-        "📤 Upload CT/MRI Image(s) (multiple allowed)",
-        type=["jpg", "jpeg", "png", "bmp", "tif", "tiff", "dcm"],
-        accept_multiple_files=True,
-        key="upload_scan_multi"
-    )
-
-    # containers to collect evaluation information
-    eval_image_names = []
-    eval_y_true = []
-    eval_y_pred = []
-    eval_y_prob = []
-
-    if uploaded_files:
-        st.subheader("🩻 Uploaded Scans and Predictions")
-        st.write("For each uploaded image: confirm the true label (if known) or leave the suggested label (from filename).")
-        for uploaded_file in uploaded_files:
-            filename = uploaded_file.name
-            # load image bytes into cv2
-            file_bytes = uploaded_file.read()
-            img = None
-            # DICOM handling
-            if filename.lower().endswith(".dcm"):
-                if HAS_PYDICOM:
-                    try:
-                        ds = pydicom.dcmread(st.binary_buffer(file_bytes))
-                    except Exception:
-                        # pydicom expects path-like or file-like; create from bytes
-                        import io
-                        ds = pydicom.dcmread(io.BytesIO(file_bytes))
-                    try:
-                        arr = ds.pixel_array
-                        # normalize arr to 0-255
-                        arr = arr.astype(np.float32)
-                        arr -= arr.min()
-                        if arr.max() != 0:
-                            arr = arr / arr.max()
-                        arr = (arr * 255).astype(np.uint8)
-                        if arr.ndim == 2:
-                            img = cv2.cvtColor(arr, cv2.COLOR_GRAY2BGR)
-                        elif arr.ndim == 3:
-                            # already multi-channel
-                            img = arr
-                        else:
-                            img = cv2.cvtColor(arr[..., 0], cv2.COLOR_GRAY2BGR)
-                    except Exception as e:
-                        st.warning(f"Could not parse DICOM pixels for {filename}: {e}")
-                        img = None
-                else:
-                    st.warning(f"DICOM file detected ({filename}) but pydicom is not installed. Skipping DICOM.")
-                    img = None
-            else:
-                # regular image formats
-                file_bytes_np = np.frombuffer(file_bytes, np.uint8)
-                img = cv2.imdecode(file_bytes_np, cv2.IMREAD_COLOR)
-
-            if img is None:
-                st.error(f"Unable to read image: {filename}")
-                continue
-
-            # Show original
-            cols = st.columns([1, 1])
-            with cols[0]:
-                st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption=f"Original: {filename}", use_column_width=True)
-            # Predict
-            stroke_prob, no_stroke_prob = classify_image(img)
-            pred_label = 1 if stroke_prob > 0.5 else 0
-
-            # Suggest a ground truth if filename contains keywords
-            suggested_true = None
-            lname = filename.lower()
-            if "stroke" in lname or "yes" in lname or "1" in lname:
-                suggested_true = 1
-            elif "no" in lname or "normal" in lname or "healthy" in lname or "0" in lname:
-                suggested_true = 0
-
-            # let user confirm/set true label
-            with cols[1]:
-                st.write(f"**Prediction:** {'Stroke' if pred_label == 1 else 'No Stroke'}")
-                st.write(f"**Stroke Probability:** {stroke_prob*100:.2f}%")
-                if stroke_prob > 0.7:
-                    st.error("⚠ High Stroke Probability Detected! Immediate medical attention recommended.")
-                elif stroke_prob > 0.4:
-                    st.warning("⚠ Moderate Stroke Risk — further diagnosis advised.")
-                else:
-                    st.success("✅ No Stroke Detected.")
-
-                true_label = None
-                if suggested_true is not None:
-                    true_label = st.radio(
-                        f"True label for {filename} (suggested)",
-                        ("No Stroke", "Stroke"),
-                        index=suggested_true,
-                        key=f"true_{filename}"
-                    )
-                else:
-                    true_label = st.radio(
-                        f"True label for {filename}",
-                        ("No Stroke", "Stroke"),
-                        index=0,
-                        key=f"true_{filename}"
-                    )
-                # convert to 0/1
-                true_val = 1 if (true_label == "Stroke") else 0
-
-                # show highlighted regions if predicted stroke
-                if pred_label == 1:
-                    marked = highlight_stroke_regions(img)
-                    st.image(cv2.cvtColor(marked, cv2.COLOR_BGR2RGB), caption=f"Highlighted: {filename}", use_column_width=True)
-
-                # Store eval info
-                eval_image_names.append(filename)
-                eval_y_true.append(true_val)
-                eval_y_pred.append(pred_label)
-                eval_y_prob.append(stroke_prob)
-
-                st.markdown("---")
-
-        # After processing all images: show evaluation metrics if more than one item
-        if len(eval_y_true) >= 1:
-            st.write("## 🧮 Evaluation (from uploaded batch)")
-            # compute metrics
-            y_true_arr = np.array(eval_y_true)
-            y_pred_arr = np.array(eval_y_pred)
-            y_prob_arr = np.array(eval_y_prob)
-
-            # Basic metrics
-            acc = accuracy_score(y_true_arr, y_pred_arr)
-            prec = precision_score(y_true_arr, y_pred_arr, zero_division=0)
-            rec = recall_score(y_true_arr, y_pred_arr, zero_division=0)
-
-            cols_m = st.columns(3)
-            cols_m[0].metric("Accuracy", f"{acc*100:.2f}%")
-            cols_m[1].metric("Precision", f"{prec*100:.2f}%")
-            cols_m[2].metric("Recall", f"{rec*100:.2f}%")
-
-            # Confusion matrix
-            cm = confusion_matrix(y_true_arr, y_pred_arr)
-            fig_cm, ax_cm = plt.subplots(figsize=(4, 3))
-            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["No Stroke", "Stroke"], yticklabels=["No Stroke", "Stroke"], ax=ax_cm)
-            ax_cm.set_xlabel("Predicted")
-            ax_cm.set_ylabel("Actual")
-            st.pyplot(fig_cm)
-
-            # ROC (only if there is both classes present)
-            if len(set(y_true_arr)) > 1:
-                fpr, tpr, _ = roc_curve(y_true_arr, y_prob_arr)
-                roc_auc = auc(fpr, tpr)
-                st.write("### ROC Curve")
-                fig_roc, ax_roc = plt.subplots()
-                ax_roc.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-                ax_roc.plot([0, 1], [0, 1], linestyle="--", color="gray")
-                ax_roc.set_xlabel("False Positive Rate")
-                ax_roc.set_ylabel("True Positive Rate")
-                ax_roc.legend()
-                st.pyplot(fig_roc)
-            else:
-                st.info("ROC curve requires at least one example from each class (Stroke and No Stroke).")
-
-
-  
     # Doctor Appointment Management (admin view)
     with st.expander("🩺 View Doctor Appointments"):
         render_admin_appointments()
@@ -658,6 +421,16 @@ def render_user_app():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
+        # For demo, assume true label is unknown; here for example purposes, set to 1 (stroke) or 0 (no stroke)
+        # User or admin could modify or pass true label for evaluation purposes if available.
+        # For now, will show confusion matrix and ROC only if you define true_label here:
+        true_label = None  # Set to 0 or 1 if you have ground truth
+        if true_label is not None:
+            pred_label = 1 if stroke_prob > 0.5 else 0
+            pred_scores = stroke_prob
+            plot_confusion_matrix([true_label], [pred_label])
+            plot_roc_curve([true_label], [pred_scores])
+
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
@@ -694,7 +467,7 @@ def render_user_app():
     st.write("---")
     if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
         st.session_state.show_appt_form = True
-        st.rerun()
+        st.experimental_rerun()
 
     # Show current appointment status for this user
     st.write("### 📅 Your Appointment Requests")
@@ -718,7 +491,7 @@ def render_user_app():
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
-            st.rerun()
+            st.experimental_rerun()
 
     if st.session_state.get("show_appt_form", False):
         render_appointment_portal()
@@ -773,10 +546,10 @@ def render_appointment_portal():
             save_appointments_to_file()
             st.success("✅ Appointment request sent to Admin for approval.")
             st.session_state.show_appt_form = False
-            st.rerun()
+            st.experimental_rerun()
         if cancel:
             st.session_state.show_appt_form = False
-            st.rerun()
+            st.experimental_rerun()
 
 
 # -------------------------
@@ -802,19 +575,19 @@ def render_admin_appointments():
                     st.session_state.appointments[idx]["status"] = "Approved"
                     save_appointments_to_file()
                     st.success(f"Appointment approved for {appt['patient_name']}")
-                    st.rerun()
+                    st.experimental_rerun()
             with col2:
                 if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Rejected"
                     save_appointments_to_file()
                     st.error(f"Appointment rejected for {appt['patient_name']}")
-                    st.rerun()
+                    st.experimental_rerun()
             with col3:
                 if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}"):
                     removed = st.session_state.appointments.pop(idx)
                     save_appointments_to_file()
                     st.info(f"Deleted appointment for {removed['patient_name']}")
-                    st.rerun()
+                    st.experimental_rerun()
             st.write("---")
 
 
