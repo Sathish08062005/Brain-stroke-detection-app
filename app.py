@@ -18,6 +18,7 @@ try:
 except Exception:
     HAS_PYDICOM = False
 
+
 # -------------------------
 # Users & Appointments file for persistence
 # -------------------------
@@ -93,7 +94,6 @@ model = load_stroke_model()
 # Preprocess image for classification
 # -------------------------
 def preprocess_image(image):
-    # input: BGR image (numpy)
     image = cv2.resize(image, (224, 224))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = img_to_array(image) / 255.0
@@ -256,10 +256,9 @@ def render_admin_dashboard():
             st.rerun()
 
     tabs = st.tabs(
-        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "📊 Confusion Matrix"]
+        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"]
     )
 
-    # --- Create User Tab
     with tabs[0]:
         st.subheader("Create a new user")
         new_username = st.text_input("New Username", key="new_username")
@@ -269,7 +268,6 @@ def render_admin_dashboard():
             ok, msg = add_user(new_username, new_password, role)
             (st.success if ok else st.error)(msg)
 
-    # --- Manage Users Tab
     with tabs[1]:
         st.subheader("All Users")
         users = st.session_state.users
@@ -292,7 +290,6 @@ def render_admin_dashboard():
         else:
             st.info("No users yet.")
 
-    # --- Export/Import Tab
     with tabs[2]:
         st.subheader("Export / Import Users")
         st.download_button(
@@ -307,7 +304,6 @@ def render_admin_dashboard():
             ok, msg = import_users_json(up.read())
             (st.success if ok else st.error)(msg)
 
-    # --- Telegram Settings Tab
     with tabs[3]:
         st.subheader("Telegram Settings")
         bot_token = st.text_input(
@@ -320,6 +316,7 @@ def render_admin_dashboard():
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
+
 
     # --- Confusion Matrix Tab (NEW) - admin-side CSV-based option retained for admins
     with tabs[4]:
@@ -395,13 +392,13 @@ def render_admin_dashboard():
         st.caption("No reports yet.")
 
 
+
 # -------------------------
 # Stroke App Main UI
 # -------------------------
 def render_user_app():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
-    st.write("Upload one or multiple brain scan images to check stroke probability and view affected regions.")
-    st.write("You can upload JPG/JPEG/PNG/BMP/TIFF/.dcm. For DICOM support install `pydicom`.")
+    st.write("Upload a brain scan image to check stroke probability and view affected regions.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -418,6 +415,51 @@ def render_user_app():
     st.sidebar.header("📞 Emergency Contact Settings")
     relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
     relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
+
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="upload_scan")
+
+    if uploaded_file is not None:
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, 1)
+        st.image(image, caption="🖼 Uploaded Scan", use_column_width=True)
+
+        stroke_prob, no_stroke_prob = classify_image(image)
+        stroke_percent = stroke_prob * 100
+        no_stroke_percent = no_stroke_prob * 100
+
+        st.subheader("🧾 Patient Information")
+        st.write(f"Name: {patient_name}")
+        st.write(f"Age: {patient_age}")
+        st.write(f"Gender: {patient_gender}")
+        st.write(f"Patient ID: {patient_id}")
+        st.write(f"Contact: {patient_contact}")
+        st.write(f"Address: {patient_address}")
+
+        st.subheader("🔍 Prediction Result:")
+        st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
+        st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
+
+        if stroke_percent > 80:
+            st.error("🔴 Immediate attention needed — very high stroke risk!")
+            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 60 < stroke_percent <= 80:
+            st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
+            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
+            st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif 50 < stroke_percent <= 60:
+            st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
+            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
+        elif no_stroke_percent > 90:
+            st.success("🟢 Very low stroke risk — scan looks healthy.")
+            st.info("⏱ Suggested Action: Routine monitoring only.")
+        elif 70 < no_stroke_percent <= 90:
+            st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
+            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
+            st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
     # ---------- MULTI-UPLOAD (added) ----------
     uploaded_files = st.file_uploader(
@@ -579,16 +621,16 @@ def render_user_app():
             else:
                 st.info("ROC curve requires at least one example from each class (Stroke and No Stroke).")
 
-    # Save & Send to Telegram (keeps original behavior)
-    if st.button("💾 Save & Send to Telegram", key="send_telegram_btn_user"):
-        # use the report for the last processed image or a generic message if none
-        if uploaded_files and eval_image_names:
-            last_name = eval_image_names[-1]
-            last_idx = -1
-            stroke_percent = eval_y_prob[last_idx]*100
-            no_stroke_percent = (1-eval_y_prob[last_idx])*100
+
+
+        if stroke_prob > 0.5:
+            marked_image = highlight_stroke_regions(image)
+            st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
+
+        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
+
             message = (
                 "🧾 Patient Stroke Report\n\n"
                 f"👤 Name: {patient_name}\n"
@@ -597,7 +639,6 @@ def render_user_app():
                 f"🆔 Patient ID: {patient_id}\n"
                 f"📞 Contact: {patient_contact}\n"
                 f"🏠 Address: {patient_address}\n\n"
-                f"File: {last_name}\n"
                 f"🩸 Stroke Probability: {stroke_percent:.2f}%\n"
                 f"✅ No Stroke Probability: {no_stroke_percent:.2f}%"
             )
@@ -618,8 +659,6 @@ def render_user_app():
                     st.error("❌ Failed to send report to Telegram.")
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
-        else:
-            st.warning("No uploaded images to send.")
 
     st.write("---")
     if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
@@ -805,4 +844,3 @@ else:
         render_admin_dashboard()
     else:
         render_user_app()
-
