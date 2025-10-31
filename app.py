@@ -8,6 +8,12 @@ import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
+# New imports for evaluation & plotting
+from sklearn.metrics import confusion_matrix, roc_curve, auc, accuracy_score, precision_score, recall_score, f1_score
+import matplotlib.pyplot as plt
+import io
+import base64
+
 # -------------------------
 # Users & Appointments file for persistence
 # -------------------------
@@ -320,6 +326,9 @@ def render_admin_dashboard():
     else:
         st.caption("No reports yet.")
 
+    # --- NEW: Model Evaluation Panel for Admin ---
+    render_model_evaluation_panel()
+
 
 # -------------------------
 # Stroke App Main UI
@@ -463,6 +472,9 @@ def render_user_app():
     # -------------------------
     render_post_stroke_care()
 
+    # --- NEW: Model Evaluation Panel for Users (can be hidden to admin only if desired) ---
+    render_model_evaluation_panel()
+
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
@@ -598,6 +610,127 @@ def render_post_stroke_care():
         - Stay *mentally active*: puzzles, reading, cognitive exercises.  
         - *Small, consistent steps*: recovery is gradual; consistency matters.
         """)
+
+
+# -------------------------
+# NEW: Model Evaluation Panel (Confusion Matrix + ROC + Metrics)
+# -------------------------
+def _plot_confusion_matrix(cm, labels):
+    fig, ax = plt.subplots(figsize=(4, 4))
+    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    ax.set_title("Confusion Matrix")
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    tick_marks = np.arange(len(labels))
+    ax.set_xticks(tick_marks)
+    ax.set_xticklabels(labels, rotation=45)
+    ax.set_yticks(tick_marks)
+    ax.set_yticklabels(labels)
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], 'd'),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+    ax.set_ylabel('True label')
+    ax.set_xlabel('Predicted label')
+    fig.tight_layout()
+    return fig
+
+
+def _plot_roc(fpr, tpr, roc_auc):
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ax.plot(fpr, tpr, lw=2, label=f"AUC = {roc_auc:.3f}")
+    ax.plot([0, 1], [0, 1], linestyle='--', lw=1)
+    ax.set_xlim([-0.01, 1.01])
+    ax.set_ylim([-0.01, 1.01])
+    ax.set_xlabel('False Positive Rate')
+    ax.set_ylabel('True Positive Rate')
+    ax.set_title('ROC Curve')
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    return fig
+
+
+def _fig_to_download_link(fig, filename="plot.png"):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode()
+    href = f'<a href="data:file/png;base64,{b64}" download="{filename}">📥 Download {filename}</a>'
+    return href
+
+
+def render_model_evaluation_panel():
+    st.subheader("📊 Model Evaluation (Confusion Matrix & ROC)")
+
+    st.markdown(
+        "Upload a CSV with columns **`true_label`** (0 or 1) and **`pred_prob`** (probability of stroke between 0 and 1). "
+        "Then choose a threshold to compute the confusion matrix and metrics. "
+        "If you don't have a CSV, you can create one from your test set predictions."
+    )
+
+    uploaded = st.file_uploader("Upload evaluation CSV", type=["csv"], key="eval_csv_uploader")
+    sample_col1, sample_col2 = st.columns([1, 3])
+    with sample_col1:
+        if st.button("Show sample CSV"):
+            st.code("true_label,pred_prob\n0,0.12\n1,0.87\n0,0.33\n1,0.92\n...", language="text")
+    if uploaded is None:
+        st.info("No evaluation CSV uploaded. Upload to compute metrics.")
+        return
+
+    try:
+        import pandas as pd
+
+        df = pd.read_csv(uploaded)
+        if "true_label" not in df.columns or "pred_prob" not in df.columns:
+            st.error("CSV must contain 'true_label' and 'pred_prob' columns.")
+            return
+
+        y_true = df["true_label"].astype(int).values
+        y_prob = df["pred_prob"].astype(float).values
+
+        # threshold slider
+        thresh = st.slider("Probability threshold for classification", min_value=0.0, max_value=1.0, value=0.5, step=0.01, key="eval_thresh")
+
+        y_pred = (y_prob >= thresh).astype(int)
+
+        # metrics
+        acc = accuracy_score(y_true, y_pred)
+        prec = precision_score(y_true, y_pred, zero_division=0)
+        rec = recall_score(y_true, y_pred, zero_division=0)
+        f1 = f1_score(y_true, y_pred, zero_division=0)
+
+        cm = confusion_matrix(y_true, y_pred)
+        fpr, tpr, _ = roc_curve(y_true, y_prob)
+        roc_auc = auc(fpr, tpr)
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.metric("Accuracy", f"{acc:.3f}")
+            st.metric("Precision", f"{prec:.3f}")
+            st.metric("Recall", f"{rec:.3f}")
+            st.metric("F1 Score", f"{f1:.3f}")
+
+        with col2:
+            st.write(f"AUC: **{roc_auc:.3f}**")
+            st.write(f"Threshold: **{thresh:.2f}**")
+            st.write("---")
+
+        # Plots
+        fig_cm = _plot_confusion_matrix(cm, labels=["No Stroke (0)", "Stroke (1)"])
+        st.pyplot(fig_cm)
+        st.markdown(_fig_to_download_link(fig_cm, filename="confusion_matrix.png"), unsafe_allow_html=True)
+
+        fig_roc = _plot_roc(fpr, tpr, roc_auc)
+        st.pyplot(fig_roc)
+        st.markdown(_fig_to_download_link(fig_roc, filename="roc_curve.png"), unsafe_allow_html=True)
+
+        # Optional: show raw table
+        if st.expander("Show uploaded data"):
+            st.dataframe(df.head(200))
+
+    except Exception as e:
+        st.error(f"Error processing evaluation file: {e}")
 
 
 # -------------------------
