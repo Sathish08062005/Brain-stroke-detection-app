@@ -1,3 +1,4 @@
+# streamlit_stroke_app_with_metrics.py
 import streamlit as st
 import numpy as np
 import cv2
@@ -5,10 +6,19 @@ import json
 import requests
 import os
 import gdown
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, roc_curve, auc, accuracy_score, recall_score
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+
+# New imports for metrics & plotting
+from sklearn.metrics import (
+    confusion_matrix,
+    roc_curve,
+    auc,
+    accuracy_score,
+    recall_score,
+)
+import matplotlib.pyplot as plt
+import itertools
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -114,122 +124,6 @@ def highlight_stroke_regions(image):
 
 
 # -------------------------
-# Confusion matrix / ROC / performance helpers (simulated, no CSV)
-# -------------------------
-def generate_simulated_metrics(stroke_prob, n_samples=200):
-    """
-    Generate simulated test predictions and labels to create a confusion matrix,
-    ROC curve and performance stats. This does NOT use any real labels from the user;
-    it's a representative visualization based on the model's stroke_prob.
-    """
-    # Simulate scores around the model's stroke probability.
-    # We sample scores from a normal distribution centered at stroke_prob with small noise,
-    # then clip into [0,1]. This gives the ROC curve something to plot.
-    rng = np.random.default_rng(seed=42)
-    y_scores = np.clip(rng.normal(loc=stroke_prob, scale=0.18, size=n_samples), 0, 1)
-
-    # Simulate true labels using a plausible prevalence (e.g., 30% positive)
-    prevalence = 0.30
-    y_true = rng.binomial(1, prevalence, size=n_samples)
-
-    # Predicted labels using threshold 0.5 on scores
-    y_pred = (y_scores >= 0.5).astype(int)
-
-    return y_true, y_pred, y_scores
-
-
-def compute_performance(y_true, y_pred, y_scores):
-    # Confusion matrix (2x2)
-    cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
-    # Metrics
-    try:
-        acc = accuracy_score(y_true, y_pred)
-    except Exception:
-        acc = 0.0
-    # Sensitivity / Recall for positive class (1)
-    try:
-        sens = recall_score(y_true, y_pred, pos_label=1)
-    except Exception:
-        sens = 0.0
-    # Specificity = TN / (TN + FP)
-    tn, fp, fn, tp = (0, 0, 0, 0)
-    if cm.shape == (2, 2):
-        tn, fp, fn, tp = cm.ravel()
-        spec = tn / (tn + fp) if (tn + fp) > 0 else 0.0
-    else:
-        spec = 0.0
-
-    # ROC / AUC
-    try:
-        fpr, tpr, _ = roc_curve(y_true, y_scores)
-        roc_auc = auc(fpr, tpr)
-    except Exception:
-        fpr, tpr, roc_auc = np.array([0.0, 1.0]), np.array([0.0, 1.0]), 0.0
-
-    return {
-        "confusion_matrix": cm,
-        "accuracy": acc,
-        "sensitivity": sens,
-        "specificity": spec,
-        "fpr": fpr,
-        "tpr": tpr,
-        "auc": roc_auc,
-    }
-
-
-def display_metrics_on_ui(perf):
-    """
-    Show confusion matrix, ROC curve and a performance summary side-by-side.
-    """
-    cm = perf["confusion_matrix"]
-    fpr = perf["fpr"]
-    tpr = perf["tpr"]
-    roc_auc = perf["auc"]
-    acc = perf["accuracy"]
-    sens = perf["sensitivity"]
-    spec = perf["specificity"]
-
-    col_left, col_right = st.columns([1, 1])
-
-    with col_left:
-        st.markdown("### 📊 Confusion Matrix")
-        fig, ax = plt.subplots(figsize=(4, 3))
-        im = ax.imshow(cm, cmap="Blues", aspect="auto")
-        ax.set_xticks([0, 1])
-        ax.set_yticks([0, 1])
-        ax.set_xticklabels(["No Stroke", "Stroke"])
-        ax.set_yticklabels(["No Stroke", "Stroke"])
-        ax.set_xlabel("Predicted")
-        ax.set_ylabel("True")
-        for (i, j), val in np.ndenumerate(cm):
-            ax.text(j, i, f"{val}", ha="center", va="center", color="black", fontsize=12)
-        plt.tight_layout()
-        st.pyplot(fig)
-
-    with col_right:
-        st.markdown("### 📈 ROC Curve")
-        fig2, ax2 = plt.subplots(figsize=(4, 3))
-        ax2.plot(fpr, tpr, lw=2, label=f"AUC = {roc_auc:.2f}")
-        ax2.plot([0, 1], [0, 1], linestyle="--", color="gray")
-        ax2.set_xlim([0.0, 1.0])
-        ax2.set_ylim([0.0, 1.05])
-        ax2.set_xlabel("False Positive Rate")
-        ax2.set_ylabel("True Positive Rate")
-        ax2.set_title("ROC Curve")
-        ax2.legend(loc="lower right")
-        plt.tight_layout()
-        st.pyplot(fig2)
-
-    # Performance summary under the charts
-    st.markdown("### 📋 Performance Summary")
-    cols = st.columns(4)
-    cols[0].metric("Accuracy", f"{acc:.2f}")
-    cols[1].metric("AUC", f"{roc_auc:.2f}")
-    cols[2].metric("Sensitivity (Recall)", f"{sens:.2f}")
-    cols[3].metric("Specificity", f"{spec:.2f}")
-
-
-# -------------------------
 # Auth state
 # -------------------------
 def ensure_state():
@@ -261,6 +155,14 @@ def ensure_state():
         st.session_state.report_log = []
     if "appointments" not in st.session_state:
         st.session_state.appointments = load_appointments_from_file()
+
+    # NEW: evaluation storage for confusion matrix / ROC
+    if "eval_true_labels" not in st.session_state:
+        # store numeric true labels: 1 = Stroke, 0 = No Stroke
+        st.session_state.eval_true_labels = []
+    if "eval_pred_scores" not in st.session_state:
+        # store predicted probability for 'stroke' class
+        st.session_state.eval_pred_scores = []
 
 
 ensure_state()
@@ -328,6 +230,113 @@ def import_users_json(file_bytes):
         return True, "Users imported."
     except Exception as e:
         return False, f"Import failed: {e}"
+
+
+# -------------------------
+# Metrics helpers (new)
+# -------------------------
+def compute_metrics(y_true, y_score, threshold=0.5):
+    """
+    y_true: list of 0/1 true labels
+    y_score: list of probabilities for positive class (stroke)
+    """
+    results = {}
+    if len(y_true) == 0:
+        return None
+
+    # predicted labels by threshold
+    y_pred = [1 if s >= threshold else 0 for s in y_score]
+
+    # Confusion matrix
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+
+    # metrics
+    try:
+        acc = accuracy_score(y_true, y_pred)
+    except Exception:
+        acc = 0.0
+    # Sensitivity (Recall for positive class)
+    try:
+        sens = recall_score(y_true, y_pred)
+    except Exception:
+        sens = 0.0
+    # Specificity = TN / (TN + FP)
+    try:
+        spec = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+    except Exception:
+        spec = 0.0
+    # ROC AUC
+    try:
+        fpr, tpr, _ = roc_curve(y_true, y_score)
+        roc_auc = auc(fpr, tpr)
+    except Exception:
+        fpr, tpr, roc_auc = None, None, 0.0
+
+    results.update(
+        {
+            "tn": int(tn),
+            "fp": int(fp),
+            "fn": int(fn),
+            "tp": int(tp),
+            "accuracy": float(acc),
+            "sensitivity": float(sens),
+            "specificity": float(spec),
+            "fpr": fpr,
+            "tpr": tpr,
+            "auc": float(roc_auc),
+        }
+    )
+    return results
+
+
+def plot_confusion_matrix(cm, classes, ax=None):
+    """
+    cm: 2x2 confusion matrix np.array
+    classes: list of class names
+    """
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    im = ax.imshow(cm, interpolation="nearest")
+    ax.set_title("Confusion Matrix")
+    ax.set_xlabel("Predicted label")
+    ax.set_ylabel("True label")
+    ax.set_xticks(np.arange(len(classes)))
+    ax.set_yticks(np.arange(len(classes)))
+    ax.set_xticklabels(classes)
+    ax.set_yticklabels(classes)
+
+    # annotate counts
+    thresh = cm.max() / 2.0 if cm.max() > 0 else 0
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        ax.text(
+            j,
+            i,
+            format(cm[i, j], "d"),
+            horizontalalignment="center",
+            verticalalignment="center",
+        )
+    fig.tight_layout()
+    return fig, ax
+
+
+def plot_roc_curve(fpr, tpr, roc_auc):
+    fig, ax = plt.subplots()
+    if fpr is None or tpr is None:
+        ax.text(0.5, 0.5, "Not enough positive/negative examples to plot ROC", ha="center")
+        ax.set_axis_off()
+        return fig
+    ax.plot(fpr, tpr)
+    ax.plot([0, 1], [0, 1], linestyle="--")
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_title(f"ROC Curve (AUC = {roc_auc:.3f})")
+    fig.tight_layout()
+    return fig
 
 
 # -------------------------
@@ -511,17 +520,74 @@ def render_user_app():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-            # --- ADDED: Confusion Matrix, ROC and Performance Summary (simulated) ---
-            # We simulate a test-set to visualize performance (no CSV / no true labels required)
-            y_true_sim, y_pred_sim, y_scores_sim = generate_simulated_metrics(stroke_prob, n_samples=200)
-            perf = compute_performance(y_true_sim, y_pred_sim, y_scores_sim)
-            display_metrics_on_ui(perf)
-        else:
-            # If no highlight (low probability), still show the metrics for reference below prediction
-            y_true_sim, y_pred_sim, y_scores_sim = generate_simulated_metrics(stroke_prob, n_samples=200)
-            perf = compute_performance(y_true_sim, y_pred_sim, y_scores_sim)
-            display_metrics_on_ui(perf)
+        # -------------------------
+        # NEW: Evaluation controls (no CSV required)
+        # -------------------------
+        st.markdown("### 📊 Add this sample to evaluation (for Confusion Matrix / ROC)")
+        col_e1, col_e2, col_e3 = st.columns([2, 2, 1])
+        with col_e1:
+            true_label = st.selectbox(
+                "True label (if known)",
+                ("Unknown", "Stroke", "No Stroke"),
+                key="eval_true_label_select",
+            )
+        with col_e2:
+            th = st.slider("Decision threshold (%)", min_value=1, max_value=99, value=50, key="eval_threshold")
+            threshold = th / 100.0
+        with col_e3:
+            if st.button("➕ Add to Evaluation", key="add_to_eval"):
+                if true_label == "Unknown":
+                    st.warning("Select 'Stroke' or 'No Stroke' to add sample to evaluation.")
+                else:
+                    y_true_val = 1 if true_label == "Stroke" else 0
+                    st.session_state.eval_true_labels.append(y_true_val)
+                    st.session_state.eval_pred_scores.append(stroke_prob)
+                    st.success("Sample added to evaluation set.")
+        if st.button("♻️ Reset evaluation", key="reset_eval"):
+            st.session_state.eval_true_labels = []
+            st.session_state.eval_pred_scores = []
+            st.success("Evaluation data cleared.")
 
+        # Compute and show metrics if we have evaluation items
+        if len(st.session_state.eval_true_labels) > 0:
+            metrics = compute_metrics(
+                st.session_state.eval_true_labels, st.session_state.eval_pred_scores, threshold=threshold
+            )
+            if metrics is not None:
+                cm = np.array([[metrics["tn"], metrics["fp"]], [metrics["fn"], metrics["tp"]]])
+                # layout: side-by-side confusion matrix and ROC
+                st.markdown("### 🔬 Evaluation Results (from added samples)")
+                colm, colr = st.columns([1, 1.2])
+                with colm:
+                    st.write("**Confusion matrix**")
+                    fig_cm, ax_cm = plt.subplots()
+                    plot_confusion_matrix(cm, classes=["No Stroke (0)", "Stroke (1)"], ax=ax_cm)
+                    st.pyplot(fig_cm)
+                    plt.close(fig_cm)
+
+                    st.write("**Counts**")
+                    st.write(f"TP: {metrics['tp']} &nbsp;&nbsp; FP: {metrics['fp']}")
+                    st.write(f"FN: {metrics['fn']} &nbsp;&nbsp; TN: {metrics['tn']}")
+
+                with colr:
+                    st.write("**ROC Curve & AUC**")
+                    try:
+                        fig_roc = plot_roc_curve(metrics["fpr"], metrics["tpr"], metrics["auc"])
+                        st.pyplot(fig_roc)
+                        plt.close(fig_roc)
+                    except Exception:
+                        st.info("Not enough data to plot ROC (need both positive & negative examples).")
+
+                    # Numeric metrics
+                    st.markdown("**Performance Summary**")
+                    st.write(f"Accuracy: **{metrics['accuracy']:.4f}**")
+                    st.write(f"AUC: **{metrics['auc']:.4f}**")
+                    st.write(f"Sensitivity (Recall): **{metrics['sensitivity']:.4f}**")
+                    st.write(f"Specificity: **{metrics['specificity']:.4f}**")
+        else:
+            st.info("No evaluation samples yet — add 'True label' for uploaded images and click 'Add to Evaluation' to build confusion matrix / ROC from those samples.")
+
+        # existing telegram save behaviour remains untouched
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
