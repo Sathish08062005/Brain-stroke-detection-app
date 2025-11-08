@@ -1,15 +1,4 @@
-[file name]: 1000271888.jpg
-[file content begin]
-Email ID
 
-Password
-
-Remember me    Forgo: Password?
-
-LOGIN
-
-
-[file content end]
 
 import streamlit as st
 import numpy as np
