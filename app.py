@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import numpy as np
 import cv2
@@ -391,8 +389,9 @@ def render_admin_dashboard():
             logout()
             st.rerun()
 
+    # Updated tabs for admin with separate appointment management tab
     tabs = st.tabs(
-        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings"]
+        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "🩺 Appointment Requests"]
     )
 
     with tabs[0]:
@@ -453,8 +452,8 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # Doctor Appointment Management (admin view)
-    with st.expander("🩺 View Doctor Appointments"):
+    # Doctor Appointment Management in separate tab
+    with tabs[4]:
         render_admin_appointments()
 
     st.divider()
@@ -472,6 +471,34 @@ def render_admin_dashboard():
 # Stroke App Main UI
 # -------------------------
 def render_user_app():
+    # Use tabs for user interface
+    tabs = st.tabs(["🧠 Stroke Detection", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
+    
+    # Tab 1: Stroke Detection
+    with tabs[0]:
+        render_stroke_detection()
+    
+    # Tab 2: Book Appointment
+    with tabs[1]:
+        render_appointment_portal()
+    
+    # Tab 3: Post-Stroke Care
+    with tabs[2]:
+        render_post_stroke_care()
+    
+    # Sidebar (common for all tabs)
+    with st.sidebar:
+        st.header("👤 Account")
+        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
+        if st.button("🚪 Logout", key="user_logout_btn"):
+            logout()
+            st.rerun()
+
+
+# -------------------------
+# Stroke Detection Tab Content
+# -------------------------
+def render_stroke_detection():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
     st.write("Upload a brain scan image to check stroke probability and view affected regions.")
 
@@ -576,10 +603,13 @@ def render_user_app():
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
 
-    st.write("---")
-    if st.button("🩺 Book Doctor Appointment", key="book_appointment_btn"):
-        st.session_state.show_appt_form = True
-        st.rerun()
+
+# -------------------------
+# Doctor Appointment Portal (User Side)
+# -------------------------
+def render_appointment_portal():
+    st.title("🩺 Doctor Appointment Booking")
+    st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
     # Show current appointment status for this user
     st.write("### 📅 Your Appointment Requests")
@@ -597,31 +627,11 @@ def render_user_app():
             st.write(
                 f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → {color}"
             )
+    
+    st.write("---")
+    st.subheader("📝 Book New Appointment")
 
-    with st.sidebar:
-        st.header("👤 Account")
-        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-        if st.button("🚪 Logout", key="user_logout_btn"):
-            logout()
-            st.rerun()
-
-    if st.session_state.get("show_appt_form", False):
-        render_appointment_portal()
-
-    # -------------------------
-    # Post-Stroke Care & Lifestyle Recommendations
-    # -------------------------
-    render_post_stroke_care()
-
-
-# -------------------------
-# Doctor Appointment Portal (User Side)
-# -------------------------
-def render_appointment_portal():
-    st.title("🩺 Doctor Appointment Booking")
-    st.write("Book an appointment with a neurologist or radiologist for consultation.")
-
-    with st.form(key="appointment_form", clear_on_submit=False):
+    with st.form(key="appointment_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             appt_patient_name = st.text_input("Patient Name", value="John Doe", key="appt_patient_name")
@@ -641,27 +651,25 @@ def render_appointment_portal():
                 key="appt_doctor",
             )
         submit = st.form_submit_button("📩 Send Appointment Request")
-        cancel = st.form_submit_button("✖ Cancel")
 
         if submit:
-            appt = {
-                "patient_name": appt_patient_name,
-                "mobile": appt_mobile,
-                "age": appt_age,
-                "date": str(appt_date),
-                "time": str(appt_time),
-                "doctor": doctor,
-                "status": "Pending",
-                "requested_by": st.session_state.username or "unknown",
-            }
-            st.session_state.appointments.append(appt)
-            save_appointments_to_file()
-            st.success("✅ Appointment request sent to Admin for approval.")
-            st.session_state.show_appt_form = False
-            st.rerun()
-        if cancel:
-            st.session_state.show_appt_form = False
-            st.rerun()
+            if not appt_patient_name or not appt_mobile:
+                st.error("Please fill in all required fields.")
+            else:
+                appt = {
+                    "patient_name": appt_patient_name,
+                    "mobile": appt_mobile,
+                    "age": appt_age,
+                    "date": str(appt_date),
+                    "time": str(appt_time),
+                    "doctor": doctor,
+                    "status": "Pending",
+                    "requested_by": st.session_state.username or "unknown",
+                }
+                st.session_state.appointments.append(appt)
+                save_appointments_to_file()
+                st.success("✅ Appointment request sent to Admin for approval.")
+                st.rerun()
 
 
 # -------------------------
@@ -676,26 +684,35 @@ def render_admin_appointments():
     for idx, appt in enumerate(st.session_state.appointments):
         container = st.container()
         with container:
-            st.write(f"Patient: {appt['patient_name']} ({appt.get('age', '')} yrs)")
+            st.write(f"*Patient:* {appt['patient_name']} ({appt.get('age', '')} yrs)")
             st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
             st.write(f"🗓 {appt['date']} at {appt['time']}")
             st.write(f"🧑‍💻 Requested by: {appt.get('requested_by', 'unknown')}")
-            st.write(f"📋 Status: {appt.get('status', 'Pending')}")
+            
+            # Status with color coding
+            status = appt.get('status', 'Pending')
+            if status == 'Approved':
+                st.success(f"📋 Status: {status}")
+            elif status == 'Rejected':
+                st.error(f"📋 Status: {status}")
+            else:
+                st.warning(f"📋 Status: {status}")
+            
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
-                if st.button(f"✅ Approve_{idx}", key=f"approve_{idx}"):
+                if st.button(f"✅ Approve", key=f"approve_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Approved"
                     save_appointments_to_file()
                     st.success(f"Appointment approved for {appt['patient_name']}")
                     st.rerun()
             with col2:
-                if st.button(f"❌ Reject_{idx}", key=f"reject_{idx}"):
+                if st.button(f"❌ Reject", key=f"reject_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Rejected"
                     save_appointments_to_file()
                     st.error(f"Appointment rejected for {appt['patient_name']}")
                     st.rerun()
             with col3:
-                if st.button(f"🗑 Delete_{idx}", key=f"delete_{idx}"):
+                if st.button(f"🗑 Delete", key=f"delete_{idx}"):
                     removed = st.session_state.appointments.pop(idx)
                     save_appointments_to_file()
                     st.info(f"Deleted appointment for {removed['patient_name']}")
