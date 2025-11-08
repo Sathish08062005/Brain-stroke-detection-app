@@ -11,86 +11,48 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
-import pyttsx3
 import threading
 import time
+import subprocess
+import sys
 
 # -------------------------
-# Users & Appointments file for persistence
+# Voice Assistant with Fallback
 # -------------------------
-USERS_FILE = "users.json"
-APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
-VITAL_SIGNS_FILE = "vital_signs.json"   # persistent storage for vital signs
-
-
-def save_users_to_file():
+def install_pyttsx3():
+    """Install pyttsx3 if not available"""
     try:
-        with open(USERS_FILE, "w") as f:
-            json.dump(st.session_state.users, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving users file: {e}")
-
-
-# Appointment persistence helpers
-def save_appointments_to_file():
-    try:
-        with open(APPOINTMENTS_FILE, "w") as f:
-            json.dump(st.session_state.appointments, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving appointments file: {e}")
-
-
-def load_appointments_from_file():
-    if os.path.exists(APPOINTMENTS_FILE):
+        import pyttsx3
+        return True
+    except ImportError:
+        st.warning("Installing pyttsx3 for voice features...")
         try:
-            with open(APPOINTMENTS_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
-        except Exception:
-            return []
-    return []
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "pyttsx3"])
+            import pyttsx3
+            return True
+        except:
+            return False
 
-
-# Vital Signs persistence helpers
-def save_vital_signs_to_file():
-    try:
-        with open(VITAL_SIGNS_FILE, "w") as f:
-            json.dump(st.session_state.vital_signs, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving vital signs file: {e}")
-
-
-def load_vital_signs_from_file():
-    if os.path.exists(VITAL_SIGNS_FILE):
-        try:
-            with open(VITAL_SIGNS_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
-        except Exception:
-            return []
-    return []
-
-
-# -------------------------
-# Voice Assistant Functions
-# -------------------------
+# Try to initialize voice engine with fallback
 def initialize_voice_engine():
-    """Initialize the text-to-speech engine"""
+    """Initialize the text-to-speech engine with fallback"""
     try:
-        engine = pyttsx3.init()
-        # Set voice properties
-        voices = engine.getProperty('voices')
-        if len(voices) > 1:
-            engine.setProperty('voice', voices[1].id)  # Female voice if available
-        engine.setProperty('rate', 150)  # Speed of speech
-        engine.setProperty('volume', 0.8)  # Volume level
-        return engine
+        if install_pyttsx3():
+            import pyttsx3
+            engine = pyttsx3.init()
+            # Set voice properties
+            voices = engine.getProperty('voices')
+            if len(voices) > 1:
+                engine.setProperty('voice', voices[1].id)  # Female voice if available
+            engine.setProperty('rate', 150)  # Speed of speech
+            engine.setProperty('volume', 0.8)  # Volume level
+            return engine
+        else:
+            st.warning("Voice features disabled. pyttsx3 installation failed.")
+            return None
     except Exception as e:
         st.warning(f"Voice assistant initialization failed: {e}")
         return None
-
 
 def speak_text(text, engine):
     """Speak text using TTS engine in a separate thread"""
@@ -105,7 +67,9 @@ def speak_text(text, engine):
         thread = threading.Thread(target=speak)
         thread.daemon = True
         thread.start()
-
+    else:
+        # Fallback: Show text message when voice is not available
+        st.info(f"🔊 Voice Message: {text}")
 
 def welcome_user(username, role, engine):
     """Welcome message for users"""
@@ -128,7 +92,6 @@ def welcome_user(username, role, engine):
         """
     
     speak_text(welcome_message, engine)
-
 
 def provide_guidance(current_tab, engine):
     """Provide contextual guidance based on current tab"""
@@ -160,6 +123,57 @@ def provide_guidance(current_tab, engine):
     if current_tab in guidance_messages:
         speak_text(guidance_messages[current_tab], engine)
 
+# -------------------------
+# Users & Appointments file for persistence
+# -------------------------
+USERS_FILE = "users.json"
+APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
+VITAL_SIGNS_FILE = "vital_signs.json"   # persistent storage for vital signs
+
+def save_users_to_file():
+    try:
+        with open(USERS_FILE, "w") as f:
+            json.dump(st.session_state.users, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving users file: {e}")
+
+# Appointment persistence helpers
+def save_appointments_to_file():
+    try:
+        with open(APPOINTMENTS_FILE, "w") as f:
+            json.dump(st.session_state.appointments, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving appointments file: {e}")
+
+def load_appointments_from_file():
+    if os.path.exists(APPOINTMENTS_FILE):
+        try:
+            with open(APPOINTMENTS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
+
+# Vital Signs persistence helpers
+def save_vital_signs_to_file():
+    try:
+        with open(VITAL_SIGNS_FILE, "w") as f:
+            json.dump(st.session_state.vital_signs, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving vital signs file: {e}")
+
+def load_vital_signs_from_file():
+    if os.path.exists(VITAL_SIGNS_FILE):
+        try:
+            with open(VITAL_SIGNS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
 
 # -------------------------
 # Page Config
@@ -187,14 +201,11 @@ if not os.path.exists(MODEL_PATH):
     with st.spinner("⬇ Downloading stroke model... please wait ⏳"):
         gdown.download(DRIVE_URL, MODEL_PATH, quiet=False)
 
-
 @st.cache_resource(show_spinner=False)
 def load_stroke_model():
     return load_model(MODEL_PATH)
 
-
 model = load_stroke_model()
-
 
 # -------------------------
 # Preprocess image for classification
@@ -206,14 +217,12 @@ def preprocess_image(image):
     image = np.expand_dims(image, axis=0)
     return image
 
-
 def classify_image(image):
     processed = preprocess_image(image)
     prediction = model.predict(processed)[0][0]
     stroke_prob = float(prediction)
     no_stroke_prob = 1 - stroke_prob
     return stroke_prob, no_stroke_prob
-
 
 def highlight_stroke_regions(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -226,7 +235,6 @@ def highlight_stroke_regions(image):
             cv2.drawContours(mask, [cnt], -1, (0, 0, 255), -1)
     highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
     return highlighted
-
 
 # -------------------------
 # Model Evaluation Metrics Functions
@@ -273,7 +281,6 @@ def generate_model_metrics():
         'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn
     }
 
-
 def plot_confusion_matrix(cm):
     """Plot confusion matrix"""
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -284,7 +291,6 @@ def plot_confusion_matrix(cm):
     ax.set_ylabel('Actual')
     ax.set_title('Confusion Matrix')
     return fig
-
 
 def plot_roc_curve(fpr, tpr, roc_auc):
     """Plot ROC curve"""
@@ -299,7 +305,6 @@ def plot_roc_curve(fpr, tpr, roc_auc):
     ax.legend(loc="lower right")
     return fig
 
-
 def plot_precision_recall_curve(precision, recall, pr_auc):
     """Plot Precision-Recall curve"""
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -311,7 +316,6 @@ def plot_precision_recall_curve(precision, recall, pr_auc):
     ax.set_title('Precision-Recall Curve')
     ax.legend(loc="upper right")
     return fig
-
 
 def display_model_metrics():
     """Display all model evaluation metrics"""
@@ -368,7 +372,6 @@ def display_model_metrics():
     }
     st.table(pd.DataFrame(performance_data))
 
-
 # -------------------------
 # Auth state
 # -------------------------
@@ -408,9 +411,7 @@ def ensure_state():
     if "welcome_spoken" not in st.session_state:
         st.session_state.welcome_spoken = False
 
-
 ensure_state()
-
 
 # -------------------------
 # Auth functions
@@ -425,13 +426,11 @@ def login(username, password):
         return True
     return False
 
-
 def logout():
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
     st.session_state.welcome_spoken = False
-
 
 def add_user(new_username, new_password, role="user"):
     if not new_username or not new_password:
@@ -442,7 +441,6 @@ def add_user(new_username, new_password, role="user"):
     save_users_to_file()
     return True, f"User '{new_username}' created."
 
-
 def delete_user(username):
     if username == "Sathish":
         return False, "Cannot delete the default admin."
@@ -452,7 +450,6 @@ def delete_user(username):
     save_users_to_file()
     return True, f"User '{username}' deleted."
 
-
 def reset_password(username, new_password):
     if username not in st.session_state.users:
         return False, "User not found."
@@ -460,10 +457,8 @@ def reset_password(username, new_password):
     save_users_to_file()
     return True, f"Password reset for '{username}'."
 
-
 def export_users_json():
     return json.dumps(st.session_state.users, indent=2)
-
 
 def import_users_json(file_bytes):
     try:
@@ -476,7 +471,6 @@ def import_users_json(file_bytes):
         return True, "Users imported."
     except Exception as e:
         return False, f"Import failed: {e}"
-
 
 # -------------------------
 # UI: Login
@@ -495,7 +489,6 @@ def render_login():
                 st.error("❌ Invalid Username or Password")
     with colB:
         st.caption("No registration here. Users must be created by the admin.")
-
 
 # -------------------------
 # Admin Dashboard
@@ -595,7 +588,6 @@ def render_admin_dashboard():
     else:
         st.caption("No reports yet.")
 
-
 # -------------------------
 # Stroke App Main UI
 # -------------------------
@@ -646,7 +638,6 @@ def render_user_app():
     with tabs[3]:
         st.session_state.current_tab = "Post-Stroke Care"
         render_post_stroke_care()
-
 
 # -------------------------
 # Stroke Detection Tab Content
@@ -759,7 +750,6 @@ def render_stroke_detection():
                     st.error("❌ Failed to send report to Telegram.")
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
-
 
 # -------------------------
 # Vital Signs Tab Content
@@ -910,7 +900,6 @@ def render_vital_signs():
                     if vital.get('notes'):
                         st.write(f"*Notes:* {vital['notes']}")
 
-
 # -------------------------
 # Doctor Appointment Portal (User Side)
 # -------------------------
@@ -982,7 +971,6 @@ def render_appointment_portal():
                 st.success("✅ Appointment request sent to Admin for approval.")
                 st.rerun()
 
-
 # -------------------------
 # Admin: Manage Doctor Appointments (color-coded buttons)
 # -------------------------
@@ -1029,7 +1017,6 @@ def render_admin_appointments():
                     st.info(f"Deleted appointment for {removed['patient_name']}")
                     st.rerun()
             st.write("---")
-
 
 # -------------------------
 # Post-Stroke Care Recommendations Function
@@ -1181,7 +1168,6 @@ def render_post_stroke_care():
 
     st.write("---")
     st.info("💡 *Tip:* Follow these recommendations consistently for better recovery outcomes. Adjust timings based on your personal schedule and doctor's advice.")
-
 
 # -------------------------
 # Main Routing
