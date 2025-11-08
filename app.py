@@ -17,6 +17,7 @@ import pandas as pd
 # -------------------------
 USERS_FILE = "users.json"
 APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
+VITAL_SIGNS_FILE = "vital_signs.json"   # persistent storage for vital signs
 
 
 def save_users_to_file():
@@ -40,6 +41,27 @@ def load_appointments_from_file():
     if os.path.exists(APPOINTMENTS_FILE):
         try:
             with open(APPOINTMENTS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
+
+
+# Vital Signs persistence helpers
+def save_vital_signs_to_file():
+    try:
+        with open(VITAL_SIGNS_FILE, "w") as f:
+            json.dump(st.session_state.vital_signs, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving vital signs file: {e}")
+
+
+def load_vital_signs_from_file():
+    if os.path.exists(VITAL_SIGNS_FILE):
+        try:
+            with open(VITAL_SIGNS_FILE, "r") as f:
                 data = json.load(f)
                 if isinstance(data, list):
                     return data
@@ -288,6 +310,8 @@ def ensure_state():
         st.session_state.report_log = []
     if "appointments" not in st.session_state:
         st.session_state.appointments = load_appointments_from_file()
+    if "vital_signs" not in st.session_state:
+        st.session_state.vital_signs = load_vital_signs_from_file()
 
 
 ensure_state()
@@ -472,18 +496,22 @@ def render_admin_dashboard():
 # -------------------------
 def render_user_app():
     # Use tabs for user interface
-    tabs = st.tabs(["🧠 Stroke Detection", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
+    tabs = st.tabs(["🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
     
     # Tab 1: Stroke Detection
     with tabs[0]:
         render_stroke_detection()
     
-    # Tab 2: Book Appointment
+    # Tab 2: Vital Signs
     with tabs[1]:
+        render_vital_signs()
+    
+    # Tab 3: Book Appointment
+    with tabs[2]:
         render_appointment_portal()
     
-    # Tab 3: Post-Stroke Care
-    with tabs[2]:
+    # Tab 4: Post-Stroke Care
+    with tabs[3]:
         render_post_stroke_care()
     
     # Sidebar (common for all tabs)
@@ -602,6 +630,152 @@ def render_stroke_detection():
                     st.error("❌ Failed to send report to Telegram.")
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
+
+
+# -------------------------
+# Vital Signs Tab Content
+# -------------------------
+def render_vital_signs():
+    st.title("📊 Adult Vital Signs Monitoring")
+    st.write("Enter your vital signs data to monitor your health status.")
+    
+    # Display normal ranges reference
+    st.subheader("📋 Normal Vital Signs Ranges")
+    
+    # Create a table for normal ranges
+    normal_ranges = {
+        "Vital Sign": [
+            "Heart Rate (Pulse)",
+            "Temperature", 
+            "Respiratory Rate",
+            "Blood Pressure (Systolic)",
+            "Blood Pressure (Diastolic)", 
+            "SpO2 (Oxygen Saturation)"
+        ],
+        "Normal Range": [
+            "60 - 100 beats per minute",
+            "97 - 99°F (36.1-37.2°C)",
+            "12 - 20 breaths per minute", 
+            "90 - 120 mmHg",
+            "60 - 80 mmHg",
+            "95 - 100%"
+        ]
+    }
+    
+    st.table(normal_ranges)
+    
+    st.write("---")
+    
+    # Vital Signs Input Form
+    st.subheader("🩺 Enter Your Vital Signs")
+    
+    with st.form(key="vital_signs_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            patient_name = st.text_input("Patient Name", value="John Doe", key="vital_patient_name")
+            heart_rate = st.number_input("Heart Rate (bpm)", min_value=0, max_value=200, value=72, key="heart_rate")
+            temperature = st.number_input("Temperature (°F)", min_value=90.0, max_value=110.0, value=98.6, step=0.1, key="temperature")
+            respiratory_rate = st.number_input("Respiratory Rate (breaths/min)", min_value=0, max_value=60, value=16, key="respiratory_rate")
+            
+        with col2:
+            systolic_bp = st.number_input("Systolic BP (mmHg)", min_value=0, max_value=300, value=120, key="systolic_bp")
+            diastolic_bp = st.number_input("Diastolic BP (mmHg)", min_value=0, max_value=200, value=80, key="diastolic_bp")
+            oxygen_saturation = st.number_input("Oxygen Saturation (%)", min_value=0, max_value=100, value=98, key="oxygen_saturation")
+            notes = st.text_area("Additional Notes", placeholder="Any symptoms or concerns...", key="vital_notes")
+        
+        submit_button = st.form_submit_button("💾 Save Vital Signs")
+        
+        if submit_button:
+            if not patient_name:
+                st.error("Please enter patient name.")
+            else:
+                # Check for abnormal values and provide warnings
+                warnings = []
+                
+                if heart_rate < 60 or heart_rate > 100:
+                    warnings.append(f"⚠ Heart rate ({heart_rate} bpm) is outside normal range (60-100 bpm)")
+                
+                if temperature < 97 or temperature > 99:
+                    warnings.append(f"⚠ Temperature ({temperature}°F) is outside normal range (97-99°F)")
+                
+                if respiratory_rate < 12 or respiratory_rate > 20:
+                    warnings.append(f"⚠ Respiratory rate ({respiratory_rate} breaths/min) is outside normal range (12-20 breaths/min)")
+                
+                if systolic_bp < 90 or systolic_bp > 120:
+                    warnings.append(f"⚠ Systolic BP ({systolic_bp} mmHg) is outside normal range (90-120 mmHg)")
+                
+                if diastolic_bp < 60 or diastolic_bp > 80:
+                    warnings.append(f"⚠ Diastolic BP ({diastolic_bp} mmHg) is outside normal range (60-80 mmHg)")
+                
+                if oxygen_saturation < 95:
+                    warnings.append(f"🚨 Oxygen saturation ({oxygen_saturation}%) is below normal range (95-100%) - Seek medical attention!")
+                
+                # Save vital signs data
+                vital_data = {
+                    "patient_name": patient_name,
+                    "heart_rate": heart_rate,
+                    "temperature": temperature,
+                    "respiratory_rate": respiratory_rate,
+                    "systolic_bp": systolic_bp,
+                    "diastolic_bp": diastolic_bp,
+                    "oxygen_saturation": oxygen_saturation,
+                    "notes": notes,
+                    "timestamp": str(pd.Timestamp.now()),
+                    "recorded_by": st.session_state.username or "unknown"
+                }
+                
+                st.session_state.vital_signs.append(vital_data)
+                save_vital_signs_to_file()
+                
+                st.success("✅ Vital signs saved successfully!")
+                
+                # Display warnings if any
+                if warnings:
+                    st.warning("*Health Alerts:*")
+                    for warning in warnings:
+                        st.write(warning)
+                
+                # Show summary
+                st.subheader("📈 Current Reading Summary")
+                summary_cols = st.columns(3)
+                with summary_cols[0]:
+                    st.metric("Heart Rate", f"{heart_rate} bpm")
+                    st.metric("Temperature", f"{temperature}°F")
+                with summary_cols[1]:
+                    st.metric("Respiratory Rate", f"{respiratory_rate}/min")
+                    st.metric("Oxygen Saturation", f"{oxygen_saturation}%")
+                with summary_cols[2]:
+                    st.metric("Blood Pressure", f"{systolic_bp}/{diastolic_bp}")
+    
+    # Display previous vital signs records
+    st.write("---")
+    st.subheader("📋 Previous Vital Signs Records")
+    
+    user_vitals = [
+        v for v in st.session_state.vital_signs 
+        if v.get("recorded_by") == st.session_state.username
+    ]
+    
+    if not user_vitals:
+        st.info("No vital signs records yet.")
+    else:
+        # Show latest 5 records
+        recent_vitals = user_vitals[::-1][:5]
+        
+        for i, vital in enumerate(recent_vitals):
+            with st.expander(f"Record {i+1} - {vital['timestamp'][:16]}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"*Patient:* {vital['patient_name']}")
+                    st.write(f"*Heart Rate:* {vital['heart_rate']} bpm")
+                    st.write(f"*Temperature:* {vital['temperature']}°F")
+                    st.write(f"*Respiratory Rate:* {vital['respiratory_rate']}/min")
+                with col2:
+                    st.write(f"*Blood Pressure:* {vital['systolic_bp']}/{vital['diastolic_bp']} mmHg")
+                    st.write(f"*Oxygen Saturation:* {vital['oxygen_saturation']}%")
+                    if vital.get('notes'):
+                        st.write(f"*Notes:* {vital['notes']}")
 
 
 # -------------------------
@@ -880,4 +1054,26 @@ else:
         render_user_app()
 
 # -------------------------
-# Footer with "created by Sathish
+# Footer with "created by Sathish"
+# -------------------------
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        padding: 10px;
+        color: #FF69B4;
+        font-size: 14px;
+        font-weight: bold;
+        background-color: transparent;
+        z-index: 999;
+    }
+    </style>
+    <div class="footer">
+        created by Sathish
+    </div>
+    """,
+    unsafe_allow_html=True
+)
