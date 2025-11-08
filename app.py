@@ -19,122 +19,249 @@ import queue
 import subprocess
 import sys
 import base64
+from PIL import Image
+import io
 
 # -------------------------
 # Background Image Function
 # -------------------------
-def set_background_image():
-    # You can replace this with your actual background image URL or local path
-    background_image = """
-    <style>
-    .stApp {
-        background-image: url("https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
+def set_background_image(uploaded_image=None):
+    if uploaded_image is not None:
+        # Convert uploaded image to base64
+        image_bytes = uploaded_image.getvalue()
+        base64_image = base64.b64encode(image_bytes).decode()
+        
+        background_style = f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/jpeg;base64,{base64_image}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        
+        /* Ensure all text is readable with better contrast */
+        .main-header, .subheader, .stMarkdown, .stText, .stTitle, .stButton, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea {{
+            color: #ffffff !important;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8) !important;
+        }}
+        
+        /* Specific styling for headers */
+        h1, h2, h3, h4, h5, h6 {{
+            color: #ffffff !important;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9) !important;
+            font-weight: bold !important;
+        }}
+        
+        /* Style for regular text */
+        .stMarkdown p, .stText {{
+            color: #ffffff !important;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
+            font-weight: 500 !important;
+        }}
+        
+        /* Style for input labels and values */
+        label, .stTextInput > label, .stNumberInput > label, .stSelectbox > label, .stTextArea > label {{
+            color: #ffffff !important;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
+            font-weight: bold !important;
+        }}
+        
+        /* Style for metric cards */
+        .stMetric {{
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            border-radius: 10px !important;
+            padding: 10px !important;
+        }}
+        
+        /* Style for buttons */
+        .stButton > button {{
+            background-color: rgba(0, 0, 0, 0.8) !important;
+            color: white !important;
+            border: 1px solid white !important;
+            font-weight: bold !important;
+        }}
+        
+        /* Style for tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            border-radius: 10px 10px 0 0 !important;
+        }}
+        
+        .stTabs [data-baseweb="tab"] {{
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+            font-weight: bold !important;
+        }}
+        
+        /* Style for sidebar */
+        .css-1d391kg, .css-1lcbm17 {{
+            background-color: rgba(0, 0, 0, 0.8) !important;
+        }}
+        
+        /* Style for expanders */
+        .streamlit-expanderHeader {{
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            color: white !important;
+            font-weight: bold !important;
+        }}
+        
+        /* Style for tables */
+        .dataframe {{
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            color: white !important;
+        }}
+        
+        .dataframe th {{
+            background-color: rgba(76, 175, 80, 0.8) !important;
+            color: white !important;
+            font-weight: bold !important;
+        }}
+        
+        .dataframe td {{
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+        }}
+        
+        /* Footer styling */
+        .footer {{
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            padding: 10px;
+            color: #FF69B4 !important;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            z-index: 999;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }}
+        
+        /* Login container styling */
+        .login-container {{
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 50px auto;
+            max-width: 500px;
+            border: 2px solid #4CAF50;
+        }}
+        </style>
+        """
+    else:
+        # Default background if no image uploaded
+        background_style = """
+        <style>
+        .stApp {
+            background-image: url("https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+        
+        /* Same styling rules as above for text visibility */
+        .main-header, .subheader, .stMarkdown, .stText, .stTitle, .stButton, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea {
+            color: #ffffff !important;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8) !important;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff !important;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9) !important;
+            font-weight: bold !important;
+        }
+        
+        .stMarkdown p, .stText {
+            color: #ffffff !important;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
+            font-weight: 500 !important;
+        }
+        
+        label, .stTextInput > label, .stNumberInput > label, .stSelectbox > label, .stTextArea > label {
+            color: #ffffff !important;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
+            font-weight: bold !important;
+        }
+        
+        .stMetric {
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            border-radius: 10px !important;
+            padding: 10px !important;
+        }
+        
+        .stButton > button {
+            background-color: rgba(0, 0, 0, 0.8) !important;
+            color: white !important;
+            border: 1px solid white !important;
+            font-weight: bold !important;
+        }
+        
+        .stTabs [data-baseweb="tab-list"] {
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+            font-weight: bold !important;
+        }
+        
+        .css-1d391kg, .css-1lcbm17 {
+            background-color: rgba(0, 0, 0, 0.8) !important;
+        }
+        
+        .streamlit-expanderHeader {
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            color: white !important;
+            font-weight: bold !important;
+        }
+        
+        .dataframe {
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            color: white !important;
+        }
+        
+        .dataframe th {
+            background-color: rgba(76, 175, 80, 0.8) !important;
+            color: white !important;
+            font-weight: bold !important;
+        }
+        
+        .dataframe td {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+        }
+        
+        .footer {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            padding: 10px;
+            color: #FF69B4 !important;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            z-index: 999;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+        
+        .login-container {
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 50px auto;
+            max-width: 500px;
+            border: 2px solid #4CAF50;
+        }
+        </style>
+        """
     
-    /* Ensure all text is readable with better contrast */
-    .main-header, .subheader, .stMarkdown, .stText, .stTitle, .stButton, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea {
-        color: #ffffff !important;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8) !important;
-    }
-    
-    /* Specific styling for headers */
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9) !important;
-        font-weight: bold !important;
-    }
-    
-    /* Style for regular text */
-    .stMarkdown p, .stText {
-        color: #ffffff !important;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
-        font-weight: 500 !important;
-    }
-    
-    /* Style for input labels and values */
-    label, .stTextInput > label, .stNumberInput > label, .stSelectbox > label, .stTextArea > label {
-        color: #ffffff !important;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
-        font-weight: bold !important;
-    }
-    
-    /* Style for metric cards */
-    .stMetric {
-        background-color: rgba(0, 0, 0, 0.7) !important;
-        border-radius: 10px !important;
-        padding: 10px !important;
-    }
-    
-    /* Style for buttons */
-    .stButton > button {
-        background-color: rgba(0, 0, 0, 0.8) !important;
-        color: white !important;
-        border: 1px solid white !important;
-        font-weight: bold !important;
-    }
-    
-    /* Style for tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: rgba(0, 0, 0, 0.7) !important;
-        border-radius: 10px 10px 0 0 !important;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        color: white !important;
-        font-weight: bold !important;
-    }
-    
-    /* Style for sidebar */
-    .css-1d391kg, .css-1lcbm17 {
-        background-color: rgba(0, 0, 0, 0.8) !important;
-    }
-    
-    /* Style for expanders */
-    .streamlit-expanderHeader {
-        background-color: rgba(0, 0, 0, 0.7) !important;
-        color: white !important;
-        font-weight: bold !important;
-    }
-    
-    /* Style for tables */
-    .dataframe {
-        background-color: rgba(0, 0, 0, 0.7) !important;
-        color: white !important;
-    }
-    
-    .dataframe th {
-        background-color: rgba(76, 175, 80, 0.8) !important;
-        color: white !important;
-        font-weight: bold !important;
-    }
-    
-    .dataframe td {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        color: white !important;
-    }
-    
-    /* Footer styling */
-    .footer {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        padding: 10px;
-        color: #FF69B4 !important;
-        font-size: 14px;
-        font-weight: bold;
-        background-color: rgba(0, 0, 0, 0.7);
-        border-radius: 5px;
-        z-index: 999;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-    }
-    </style>
-    """
-    st.markdown(background_image, unsafe_allow_html=True)
+    st.markdown(background_style, unsafe_allow_html=True)
 
 # -------------------------
 # Improved Voice Assistant with Queue System
@@ -331,8 +458,42 @@ def load_vital_signs_from_file():
 # -------------------------
 st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 
-# Set background image
-set_background_image()
+# -------------------------
+# Background Image Upload
+# -------------------------
+def handle_background_upload():
+    st.sidebar.header("🎨 Customize Background")
+    
+    # Background image upload
+    bg_upload = st.sidebar.file_uploader(
+        "Upload Background Image", 
+        type=["jpg", "jpeg", "png"], 
+        key="background_uploader",
+        help="Upload a custom background image for the app"
+    )
+    
+    # Store background in session state
+    if bg_upload is not None:
+        st.session_state.background_image = bg_upload
+        st.sidebar.success("✅ Background image uploaded!")
+        
+        # Show preview
+        st.sidebar.subheader("Background Preview")
+        st.sidebar.image(bg_upload, use_column_width=True)
+        
+        # Option to reset to default
+        if st.sidebar.button("🔄 Reset to Default Background"):
+            st.session_state.background_image = None
+            st.rerun()
+    else:
+        if 'background_image' not in st.session_state:
+            st.session_state.background_image = None
+
+# Call background upload handler
+handle_background_upload()
+
+# Set background based on uploaded image or default
+set_background_image(st.session_state.background_image)
 
 # -------------------------
 # App Branding
@@ -519,6 +680,8 @@ def ensure_state():
         st.session_state.voice_assistant = initialize_voice_assistant()
     if "welcome_spoken" not in st.session_state:
         st.session_state.welcome_spoken = False
+    if "background_image" not in st.session_state:
+        st.session_state.background_image = None
 
 ensure_state()
 
@@ -585,6 +748,7 @@ def import_users_json(file_bytes):
 # UI: Login
 # -------------------------
 def render_login():
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.title("🔐 Login Portal")
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
@@ -598,6 +762,7 @@ def render_login():
                 st.error("❌ Invalid Username or Password")
     with colB:
         st.caption("No registration here. Users must be created by the admin.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------
 # Admin Dashboard
