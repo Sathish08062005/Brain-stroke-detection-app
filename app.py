@@ -1,3 +1,4 @@
+
 import streamlit as st
 import numpy as np
 import cv2
@@ -11,7 +12,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
-from sklearn.utils import resample
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -117,94 +117,48 @@ def highlight_stroke_regions(image):
 
 
 # -------------------------
-# Model Evaluation Metrics Functions based on actual prediction
+# Model Evaluation Metrics Functions
 # -------------------------
-def generate_dynamic_metrics(stroke_prob, no_stroke_prob, image_features=None):
+def generate_model_metrics():
     """
-    Generate dynamic metrics based on the actual prediction and image analysis
+    Generate sample model evaluation metrics for demonstration.
+    In a real application, you would use your test dataset here.
     """
-    # Base performance metrics for a well-trained model
-    base_accuracy = 0.89
-    base_precision = 0.87
-    base_recall = 0.85
-    base_f1 = 0.86
+    # Sample data for demonstration - replace with actual test data
+    np.random.seed(42)
     
-    # Adjust metrics based on prediction confidence
-    confidence_factor = max(stroke_prob, no_stroke_prob)
+    # Simulate predictions and true labels for 100 samples
+    y_true = np.random.choice([0, 1], size=100, p=[0.3, 0.7])  # 30% negative, 70% positive
+    y_pred_proba = np.random.rand(100)
+    y_pred = (y_pred_proba > 0.5).astype(int)
     
-    # Higher confidence leads to better metrics
-    if confidence_factor > 0.8:
-        accuracy = base_accuracy + 0.06
-        precision = base_precision + 0.07
-        recall = base_recall + 0.05
-        f1 = base_f1 + 0.06
-    elif confidence_factor > 0.6:
-        accuracy = base_accuracy + 0.03
-        precision = base_precision + 0.03
-        recall = base_recall + 0.02
-        f1 = base_f1 + 0.03
-    else:
-        accuracy = base_accuracy - 0.04
-        precision = base_precision - 0.05
-        recall = base_recall - 0.03
-        f1 = base_f1 - 0.04
-    
-    # Ensure metrics stay within bounds
-    accuracy = max(0.75, min(0.96, accuracy))
-    precision = max(0.72, min(0.95, precision))
-    recall = max(0.70, min(0.94, recall))
-    f1 = max(0.71, min(0.95, f1))
-    
-    # Generate confusion matrix based on prediction
-    if stroke_prob > 0.5:
-        # Predicted stroke - adjust based on confidence
-        tp = int(100 * recall)  # True positives
-        fn = int(100 * (1 - recall))  # False negatives
-        fp = int(100 * (1 - precision))  # False positives  
-        tn = int(100 * accuracy) - tp  # True negatives
-    else:
-        # Predicted no stroke
-        tn = int(100 * accuracy)  # True negatives
-        fp = int(100 * (1 - precision))  # False positives
-        fn = int(100 * (1 - recall))  # False negatives
-        tp = int(100 * recall)  # True positives
-    
-    # Ensure positive values
-    tp, tn, fp, fn = max(1, tp), max(1, tn), max(0, fp), max(0, fn)
-    
-    cm = np.array([[tn, fp], [fn, tp]])
-    
-    # Generate ROC curve data based on prediction confidence
-    if stroke_prob > 0.5:
-        # For stroke prediction, curve should show good performance
-        fpr = np.array([0.0, 0.1, 0.3, 0.5, 1.0])
-        tpr = np.array([0.0, 0.7, 0.85, 0.92, 1.0])
-    else:
-        # For no-stroke prediction
-        fpr = np.array([0.0, 0.2, 0.4, 0.6, 1.0])
-        tpr = np.array([0.0, 0.6, 0.75, 0.85, 1.0])
-    
+    # Calculate metrics
+    cm = confusion_matrix(y_true, y_pred)
+    fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
     roc_auc = auc(fpr, tpr)
+    precision, recall, _ = precision_recall_curve(y_true, y_pred_proba)
+    pr_auc = auc(recall, precision)
     
-    # Precision-recall curve
-    precision_curve = np.array([1.0, precision, precision - 0.1, 0.5, 0.3])
-    recall_curve = np.array([0.0, recall, recall + 0.1, 0.8, 1.0])
-    pr_auc = auc(recall_curve, precision_curve)
+    # Calculate additional metrics
+    tn, fp, fn, tp = cm.ravel()
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision_score = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall_score = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1_score = 2 * (precision_score * recall_score) / (precision_score + recall_score) if (precision_score + recall_score) > 0 else 0
     
     return {
         'confusion_matrix': cm,
         'fpr': fpr,
         'tpr': tpr,
         'roc_auc': roc_auc,
-        'precision_curve': precision_curve,
-        'recall_curve': recall_curve,
+        'precision_curve': precision,
+        'recall_curve': recall,
         'pr_auc': pr_auc,
         'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1_score': f1,
-        'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn,
-        'prediction_confidence': confidence_factor
+        'precision': precision_score,
+        'recall': recall_score,
+        'f1_score': f1_score,
+        'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn
     }
 
 
@@ -247,42 +201,12 @@ def plot_precision_recall_curve(precision, recall, pr_auc):
     return fig
 
 
-def analyze_image_features(image):
-    """Analyze image features to provide additional context for metrics"""
-    # Convert to grayscale for analysis
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    # Calculate image statistics
-    brightness = np.mean(gray)
-    contrast = np.std(gray)
-    
-    # Edge detection for structure analysis
-    edges = cv2.Canny(gray, 50, 150)
-    edge_density = np.sum(edges > 0) / (image.shape[0] * image.shape[1])
-    
-    # Texture analysis using variance
-    texture_variance = np.var(gray)
-    
-    return {
-        'brightness': brightness,
-        'contrast': contrast,
-        'edge_density': edge_density,
-        'texture_variance': texture_variance
-    }
-
-
-def display_model_metrics(stroke_prob, no_stroke_prob, image):
-    """Display all model evaluation metrics based on actual prediction"""
+def display_model_metrics():
+    """Display all model evaluation metrics"""
     st.subheader("📊 Model Evaluation Metrics")
     
-    # Analyze image features
-    image_features = analyze_image_features(image)
-    
-    # Generate metrics based on actual prediction
-    metrics = generate_dynamic_metrics(stroke_prob, no_stroke_prob, image_features)
-    
-    # Display prediction confidence
-    st.write(f"*Prediction Confidence: {metrics['prediction_confidence']:.1%}*")
+    # Generate metrics
+    metrics = generate_model_metrics()
     
     # Display key metrics in columns
     col1, col2, col3, col4 = st.columns(4)
@@ -328,33 +252,9 @@ def display_model_metrics(stroke_prob, no_stroke_prob, image):
             f"{metrics['f1_score']:.2%}",
             f"{metrics['roc_auc']:.2%}",
             f"{metrics['pr_auc']:.2%}"
-        ],
-        'Interpretation': [
-            'Excellent' if metrics['accuracy'] > 0.85 else 'Good' if metrics['accuracy'] > 0.75 else 'Fair',
-            'Excellent' if metrics['precision'] > 0.85 else 'Good' if metrics['precision'] > 0.75 else 'Fair',
-            'Excellent' if metrics['recall'] > 0.85 else 'Good' if metrics['recall'] > 0.75 else 'Fair',
-            'Excellent' if metrics['f1_score'] > 0.85 else 'Good' if metrics['f1_score'] > 0.75 else 'Fair',
-            'Excellent' if metrics['roc_auc'] > 0.85 else 'Good' if metrics['roc_auc'] > 0.75 else 'Fair',
-            'Excellent' if metrics['pr_auc'] > 0.85 else 'Good' if metrics['pr_auc'] > 0.75 else 'Fair'
         ]
     }
     st.table(pd.DataFrame(performance_data))
-    
-    # Image quality assessment
-    st.subheader("🖼 Image Quality Assessment")
-    quality_col1, quality_col2, quality_col3, quality_col4 = st.columns(4)
-    with quality_col1:
-        brightness_quality = "Good" if 50 <= image_features['brightness'] <= 200 else "Poor"
-        st.metric("Brightness", f"{image_features['brightness']:.1f}", brightness_quality)
-    with quality_col2:
-        contrast_quality = "Good" if image_features['contrast'] > 30 else "Poor"
-        st.metric("Contrast", f"{image_features['contrast']:.1f}", contrast_quality)
-    with quality_col3:
-        edge_quality = "Good" if image_features['edge_density'] > 0.05 else "Poor"
-        st.metric("Edge Clarity", f"{image_features['edge_density']:.2%}", edge_quality)
-    with quality_col4:
-        texture_quality = "Good" if image_features['texture_variance'] > 500 else "Poor"
-        st.metric("Texture Detail", f"{image_features['texture_variance']:.0f}", texture_quality)
 
 
 # -------------------------
@@ -639,8 +539,8 @@ def render_user_app():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        # Display Model Evaluation Metrics based on actual prediction
-        display_model_metrics(stroke_prob, no_stroke_prob, image)
+        # Display Model Evaluation Metrics
+        display_model_metrics()
 
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
