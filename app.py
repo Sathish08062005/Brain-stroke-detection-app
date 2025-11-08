@@ -13,51 +13,30 @@ import seaborn as sns
 import pandas as pd
 import base64  # ← ADD THIS IMPORT
 
-# -------------------------
-# BACKGROUND IMAGE SETUP
-# -------------------------
-def add_bg_image():
+# SIMPLE BACKGROUND FALLBACK
+try:
+    with open("1000271919.jpg", "rb") as f:
+        img_data = f.read()
+    b64_encoded = base64.b64encode(img_data).decode()
+    
     st.markdown(
         f"""
         <style>
         .stApp {{
-            background-image: url("data:image/jpeg;base64,{get_base64_of_image()}");
+            background: url("data:image/jpeg;base64,{b64_encoded}");
             background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
         }}
-        
-        /* Make content areas semi-transparent for better readability */
         .main .block-container {{
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 2rem;
+            background: rgba(255,255,255,0.95);
             border-radius: 10px;
-            margin-top: 2rem;
-        }}
-        
-        /* Sidebar transparency */
-        .css-1d391kg {{
-            background-color: rgba(255, 255, 255, 0.85);
+            padding: 2rem;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
-
-def get_base64_of_image():
-    # Make sure the image file is in the same directory as your script
-    try:
-        with open("1000271919.jpg", "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
-        return encoded_string
-    except FileNotFoundError:
-        st.error("Background image file not found! Please make sure '1000271919.jpg' is in the same folder.")
-        return ""
-
-# CALL THE BACKGROUND FUNCTION
-add_bg_image()
-
+except Exception as e:
+    st.sidebar.warning(f"Background not loaded: {e}")
 
 # -------------------------
 # Users & Appointments file for persistence
