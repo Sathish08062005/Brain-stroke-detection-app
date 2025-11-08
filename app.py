@@ -727,44 +727,145 @@ def render_post_stroke_care():
     st.title("🌿 Post-Stroke Care & Lifestyle Recommendations")
     st.write(
         "After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. "
-        "Here are some important suggestions:"
+        "Here are your daily care recommendations:"
     )
 
-    with st.expander("🥗 Nutrition & Foods"):
-        st.markdown("""
-        - Fruits & Vegetables: Fresh fruits (berries, oranges, apples) and leafy greens.  
-        - Whole Grains: Brown rice, oats, whole wheat bread.  
-        - Proteins: Fish rich in Omega-3 (salmon, sardines), eggs, legumes.  
-        - Nuts & Seeds: Almonds, walnuts, flaxseeds — in moderation.  
-        - Limit: Salt, fried foods, processed foods, and sugary snacks.  
-        - Hydration: Drink plenty of water and natural juices (avoid added sugar).
-        """)
+    # Custom CSS for the box styling
+    st.markdown("""
+    <style>
+    .recommendation-box {
+        border: 2px solid #4CAF50;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .recommendation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .recommendation-title {
+        font-weight: bold;
+        color: #2E7D32;
+        font-size: 18px;
+    }
+    .recommendation-time {
+        color: #666;
+        font-size: 14px;
+        background-color: #E8F5E8;
+        padding: 4px 8px;
+        border-radius: 15px;
+    }
+    .recommendation-content {
+        color: #333;
+        line-height: 1.6;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    with st.expander("🧘 Physical & Mental Exercises"):
-        st.markdown("""
-        - Yoga & Stretching: Gentle yoga and flexibility exercises to improve mobility.  
-        - Walking & Aerobics: Short walks, light aerobic exercises as tolerated.  
-        - Balance & Coordination Exercises: Helps prevent falls.  
-        - Breathing Exercises / Pranayama: Enhances oxygenation and reduces stress.  
-        - Meditation & Mindfulness: Supports mental health, reduces anxiety and depression.
-        """)
+    # Nutrition & Foods
+    st.markdown("""
+    <div class="recommendation-box">
+        <div class="recommendation-header">
+            <div class="recommendation-title">🥗 Fruits & Vegetables</div>
+            <div class="recommendation-time">10:48am</div>
+        </div>
+        <div class="recommendation-content">
+            • Fresh fruits (berries, oranges, apples)<br>
+            • Leafy greens and colorful vegetables<br>
+            • Limit salt and processed foods<br>
+            • Drink plenty of water
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with st.expander("💊 Lifestyle & Habits"):
-        st.markdown("""
-        - Sleep: Maintain regular sleep cycles (7–8 hours).  
-        - Stress Management: Meditation, counseling, music therapy.  
-        - Regular Check-ups: Monitor blood pressure, cholesterol, and blood sugar.  
-        - Avoid Smoking & Alcohol: Critical for stroke prevention and recovery.  
-        - Follow Doctor's Advice: Stick to prescribed medications and rehabilitation programs.
-        """)
+    # Physical Exercise
+    st.markdown("""
+    <div class="recommendation-box">
+        <div class="recommendation-header">
+            <div class="recommendation-title">💪 Physical Exercise</div>
+            <div class="recommendation-time">02:30pm</div>
+        </div>
+        <div class="recommendation-content">
+            • Gentle yoga and stretching<br>
+            • Short walks daily<br>
+            • Balance exercises<br>
+            • Breathing exercises
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with st.expander("📚 Additional Tips"):
-        st.markdown("""
-        - Keep a recovery journal for diet, exercise, and mood tracking.  
-        - Engage in social support: family, stroke support groups.  
-        - Stay mentally active: puzzles, reading, cognitive exercises.  
-        - Small, consistent steps: recovery is gradual; consistency matters.
-        """)
+    # Mental Health
+    st.markdown("""
+    <div class="recommendation-box">
+        <div class="recommendation-header">
+            <div class="recommendation-title">🧠 Mental Wellness</div>
+            <div class="recommendation-time">04:15pm</div>
+        </div>
+        <div class="recommendation-content">
+            • Meditation and mindfulness<br>
+            • Cognitive exercises<br>
+            • Social interaction<br>
+            • Stress management
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Medication & Checkups
+    st.markdown("""
+    <div class="recommendation-box">
+        <div class="recommendation-header">
+            <div class="recommendation-title">💊 Medication Schedule</div>
+            <div class="recommendation-time">08:00am & 08:00pm</div>
+        </div>
+        <div class="recommendation-content">
+            • Take prescribed medications on time<br>
+            • Regular blood pressure monitoring<br>
+            • Weekly doctor consultations<br>
+            • Follow rehabilitation program
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Sleep & Rest
+    st.markdown("""
+    <div class="recommendation-box">
+        <div class="recommendation-header">
+            <div class="recommendation-title">😴 Sleep & Rest</div>
+            <div class="recommendation-time">10:00pm</div>
+        </div>
+        <div class="recommendation-content">
+            • 7-8 hours of quality sleep<br>
+            • Regular sleep schedule<br>
+            • Relaxation techniques<br>
+            • Avoid caffeine before bed
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Additional Tips
+    st.markdown("""
+    <div class="recommendation-box">
+        <div class="recommendation-header">
+            <div class="recommendation-title">📋 Daily Checklist</div>
+            <div class="recommendation-time">All Day</div>
+        </div>
+        <div class="recommendation-content">
+            • Monitor blood pressure twice daily<br>
+            • Take medications as prescribed<br>
+            • 30 minutes of light exercise<br>
+            • Healthy meals with fruits/vegetables<br>
+            • Stay hydrated (8 glasses water)<br>
+            • Practice relaxation techniques
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.write("---")
+    st.info("💡 *Tip:* Follow these recommendations consistently for better recovery outcomes. Adjust timings based on your personal schedule and doctor's advice.")
 
 
 # -------------------------
@@ -779,26 +880,4 @@ else:
         render_user_app()
 
 # -------------------------
-# Footer with "created by Sathish"
-# -------------------------
-st.markdown(
-    """
-    <style>
-    .footer {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        padding: 10px;
-        color: #FF69B4;
-        font-size: 14px;
-        font-weight: bold;
-        background-color: transparent;
-        z-index: 999;
-    }
-    </style>
-    <div class="footer">
-        created by Sathish
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Footer with "created by Sathish
