@@ -15,7 +15,7 @@ import base64  # ← ADD THIS IMPORT
 
 # SIMPLE BACKGROUND FALLBACK
 try:
-    with open("1234.jpg", "rb") as f:
+    with open("3.jpg", "rb") as f:
         img_data = f.read()
     b64_encoded = base64.b64encode(img_data).decode()
     
