@@ -14,161 +14,294 @@ import pandas as pd
 import base64
 
 # -------------------------
-# Background Image Function
+# Background Image Function with uploaded image
 # -------------------------
 def set_background_image():
-    # Medical-themed background image (you can replace this with your own image URL)
-    # Using a medical/healthcare themed background
-    background_image_url = "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
-    
-    # Alternative: You can also use a local file by encoding it to base64
-    # For local file: background_image_url = "local_bg_image.jpg"
-    
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("{background_image_url}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
+    # Convert the uploaded PNG to base64 for background
+    try:
+        # Read the uploaded image file
+        with open("1000271897.png", "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
         
-        /* Add overlay for better readability */
-        .stApp::before {{
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.85);
-            z-index: -1;
-        }}
-        
-        /* Style main containers for better visibility */
-        .main .block-container {{
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 10px;
-            padding: 2rem;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
-        }}
-        
-        /* Style sidebar */
-        .css-1d391kg {{
-            background: rgba(255, 255, 255, 0.95) !important;
-        }}
-        
-        /* Style headers and text for better contrast */
-        h1, h2, h3, h4, h5, h6 {{
-            color: #2c3e50 !important;
-            font-family: 'Arial', sans-serif;
-        }}
-        
-        .stMarkdown {{
-            color: #34495e !important;
-        }}
-        
-        /* Style buttons */
-        .stButton>button {{
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 0.5rem 1rem;
-            font-weight: bold;
-        }}
-        
-        .stButton>button:hover {{
-            background-color: #2980b9;
-        }}
-        
-        /* Style input fields */
-        .stTextInput>div>div>input {{
-            background-color: rgba(255, 255, 255, 0.9);
-        }}
-        
-        .stNumberInput>div>div>input {{
-            background-color: rgba(255, 255, 255, 0.9);
-        }}
-        
-        .stTextArea>div>div>textarea {{
-            background-color: rgba(255, 255, 255, 0.9);
-        }}
-        
-        /* Style select boxes */
-        .stSelectbox>div>div {{
-            background-color: rgba(255, 255, 255, 0.9);
-        }}
-        
-        /* Style file uploader */
-        .stFileUploader>div {{
-            background-color: rgba(255, 255, 255, 0.9);
-        }}
-        
-        /* Style tabs */
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 2px;
-        }}
-        
-        .stTabs [data-baseweb="tab"] {{
-            height: 50px;
-            white-space: pre-wrap;
-            background-color: rgba(255, 255, 255, 0.8);
-            border-radius: 5px 5px 0px 0px;
-            gap: 1px;
-            padding-top: 10px;
-            padding-bottom: 10px;
-        }}
-        
-        .stTabs [aria-selected="true"] {{
-            background-color: rgba(52, 152, 219, 0.9) !important;
-            color: white !important;
-        }}
-        
-        /* Custom font for the entire app */
-        * {{
-            font-family: 'Arial', sans-serif !important;
-        }}
-        
-        /* Style the footer */
-        .footer {{
-            position: fixed;
-            bottom: 0;
-            right: 0;
-            padding: 10px;
-            color: #FF69B4;
-            font-size: 14px;
-            font-weight: bold;
-            background-color: rgba(255, 255, 255, 0.9);
-            border-radius: 5px;
-            margin: 10px;
-            z-index: 999;
-        }}
-        
-        /* Style recommendation boxes for better visibility */
-        .recommendation-box {{
-            border: 2px solid #4CAF50;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-            background-color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        
-        /* Ensure all content is readable */
-        .element-container {{
-            background: transparent;
-        }}
-        
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/png;base64,{encoded_string}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            /* Add overlay for better readability */
+            .stApp::before {{
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.88);
+                z-index: -1;
+            }}
+            
+            /* Style main containers for better visibility */
+            .main .block-container {{
+                background: rgba(255, 255, 255, 0.97);
+                border-radius: 15px;
+                padding: 2.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+                border: 1px solid #e0e0e0;
+                backdrop-filter: blur(5px);
+            }}
+            
+            /* Style sidebar */
+            .css-1d391kg {{
+                background: rgba(255, 255, 255, 0.97) !important;
+                backdrop-filter: blur(5px);
+            }}
+            
+            /* Style headers and text with geometric sans-serif font */
+            h1, h2, h3, h4, h5, h6 {{
+                color: #1a237e !important;
+                font-family: 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+                font-weight: 900 !important;
+                letter-spacing: -0.5px;
+            }}
+            
+            /* Custom styling for the main title */
+            .main-title {{
+                font-family: 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+                font-weight: 900 !important;
+                font-size: 3.5rem !important;
+                color: #1a237e !important;
+                text-align: center;
+                margin-bottom: 0.5rem;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+                letter-spacing: -1px;
+            }}
+            
+            .subtitle {{
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+                font-weight: 600 !important;
+                font-size: 1.5rem !important;
+                color: #283593 !important;
+                text-align: center;
+                margin-top: 0;
+                margin-bottom: 2rem;
+                letter-spacing: -0.5px;
+            }}
+            
+            .stMarkdown {{
+                color: #37474f !important;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            /* Style buttons */
+            .stButton>button {{
+                background-color: #303f9f;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0.7rem 1.5rem;
+                font-weight: bold;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }}
+            
+            .stButton>button:hover {{
+                background-color: #1a237e;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            }}
+            
+            /* Style input fields */
+            .stTextInput>div>div>input {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            .stNumberInput>div>div>input {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            .stTextArea>div>div>textarea {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            /* Style select boxes */
+            .stSelectbox>div>div {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            /* Style file uploader */
+            .stFileUploader>div {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            /* Style tabs */
+            .stTabs [data-baseweb="tab-list"] {{
+                gap: 2px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            .stTabs [data-baseweb="tab"] {{
+                height: 50px;
+                white-space: pre-wrap;
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px 8px 0px 0px;
+                gap: 1px;
+                padding-top: 10px;
+                padding-bottom: 10px;
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+                font-weight: 600;
+            }}
+            
+            .stTabs [aria-selected="true"] {{
+                background-color: rgba(48, 63, 159, 0.95) !important;
+                color: white !important;
+                font-weight: 700;
+            }}
+            
+            /* Custom font for the entire app */
+            * {{
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            /* Style the footer */
+            .footer {{
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                padding: 12px 20px;
+                color: #1a237e;
+                font-size: 16px;
+                font-weight: 800;
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                margin: 15px;
+                z-index: 999;
+                font-family: 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border: 1px solid #e0e0e0;
+            }}
+            
+            /* Style recommendation boxes for better visibility */
+            .recommendation-box {{
+                border: 2px solid #4CAF50;
+                border-radius: 12px;
+                padding: 18px;
+                margin: 12px 0;
+                background-color: rgba(255, 255, 255, 0.98);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            }}
+            
+            /* Portal design styling */
+            .portal-container {{
+                background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(245,245,255,0.98) 100%);
+                border-radius: 20px;
+                padding: 30px;
+                margin: 20px 0;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+                border: 1px solid rgba(255,255,255,0.5);
+                backdrop-filter: blur(10px);
+            }}
+            
+            .portal-title {{
+                font-family: 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+                font-weight: 900 !important;
+                font-size: 2.5rem !important;
+                color: #1a237e !important;
+                text-align: center;
+                margin-bottom: 1rem;
+                letter-spacing: -1px;
+            }}
+            
+            .portal-subtitle {{
+                font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+                font-weight: 600 !important;
+                font-size: 1.2rem !important;
+                color: #283593 !important;
+                text-align: center;
+                margin-bottom: 2rem;
+            }}
+            
+            /* Ensure all content is readable */
+            .element-container {{
+                background: transparent;
+            }}
+            
+            /* Login portal specific styling */
+            .login-portal {{
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 20px;
+                padding: 40px;
+                margin: 50px auto;
+                max-width: 500px;
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255,255,255,0.5);
+                backdrop-filter: blur(10px);
+            }}
+            
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    except Exception as e:
+        # Fallback to a medical-themed background if the image isn't available
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            /* Add overlay for better readability */
+            .stApp::before {{
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.85);
+                z-index: -1;
+            }}
+            
+            /* Rest of the styles remain the same as above */
+            .main .block-container {{
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                padding: 2.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+                border: 1px solid #e0e0e0;
+            }}
+            
+            /* ... rest of the CSS styles ... */
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -231,18 +364,20 @@ def load_vital_signs_from_file():
 # -------------------------
 # Page Config
 # -------------------------
-st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
+st.set_page_config(page_title="🧠 NeuroNexusAI", layout="centered")
 
 # Set the background image
 set_background_image()
 
 # -------------------------
-# App Branding
+# App Branding with updated font
 # -------------------------
 st.markdown(
     """ 
-#  🧠 NeuroNexusAI 
-### Advanced Stroke Detection & Healthcare Management
+<div class="portal-container">
+    <div class="portal-title">🧠 NeuroNexusAI</div>
+    <div class="portal-subtitle">Advanced Stroke Detection & Healthcare Management</div>
+</div>
  """,
     unsafe_allow_html=True,
 )
@@ -544,30 +679,52 @@ def import_users_json(file_bytes):
 
 
 # -------------------------
-# UI: Login
+# UI: Login with updated design
 # -------------------------
 def render_login():
-    st.title("🔐 Login Portal")
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
-    colA, colB = st.columns([1, 1])
-    with colA:
-        if st.button("Login", use_container_width=True, key="login_btn"):
-            if login(username, password):
-                st.success("Login successful ✅")
-                st.rerun()
-            else:
-                st.error("❌ Invalid Username or Password")
-    with colB:
-        st.caption("No registration here. Users must be created by the admin.")
+    st.markdown(
+        """
+        <div class="login-portal">
+            <h1 class="portal-title">🔐 Login Portal</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Create a container for the login form
+    with st.container():
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            with st.form("login_form"):
+                username = st.text_input("Username", key="login_username")
+                password = st.text_input("Password", type="password", key="login_password")
+                colA, colB = st.columns([1, 1])
+                with colA:
+                    login_btn = st.form_submit_button("Login", use_container_width=True)
+                with colB:
+                    st.caption("No registration here. Users must be created by the admin.")
+                
+                if login_btn:
+                    if login(username, password):
+                        st.success("Login successful ✅")
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid Username or Password")
 
 
 # -------------------------
-# Admin Dashboard
+# Admin Dashboard with updated design
 # -------------------------
 def render_admin_dashboard():
-    st.title("🛡 Admin Dashboard")
-    st.write(f"Welcome, {st.session_state.username} (admin)")
+    st.markdown(
+        """
+        <div class="portal-container">
+            <h1 class="portal-title">🛡 Admin Dashboard</h1>
+            <p class="portal-subtitle">Welcome, {username} (admin)</p>
+        </div>
+        """.format(username=st.session_state.username),
+        unsafe_allow_html=True
+    )
 
     with st.sidebar:
         st.header("⚙ Admin Actions")
@@ -654,7 +811,7 @@ def render_admin_dashboard():
 
 
 # -------------------------
-# Stroke App Main UI
+# Stroke App Main UI with updated design
 # -------------------------
 def render_user_app():
     # Use tabs for user interface
@@ -678,19 +835,33 @@ def render_user_app():
     
     # Sidebar (common for all tabs)
     with st.sidebar:
-        st.header("👤 Account")
-        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-        if st.button("🚪 Logout", key="user_logout_btn"):
+        st.markdown(
+            """
+            <div class="portal-container" style="padding: 20px; margin-bottom: 20px;">
+                <h3>👤 Account</h3>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.write(f"Logged in as: *{st.session_state.username}* ({st.session_state.role})")
+        if st.button("🚪 Logout", key="user_logout_btn", use_container_width=True):
             logout()
             st.rerun()
 
 
 # -------------------------
-# Stroke Detection Tab Content
+# Stroke Detection Tab Content with updated design
 # -------------------------
 def render_stroke_detection():
-    st.title("🧠 Stroke Detection from CT/MRI Scans")
-    st.write("Upload a brain scan image to check stroke probability and view affected regions.")
+    st.markdown(
+        """
+        <div class="portal-container">
+            <h1 class="portal-title">🧠 Stroke Detection</h1>
+            <p class="portal-subtitle">Upload a brain scan image to check stroke probability and view affected regions</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -760,7 +931,7 @@ def render_stroke_detection():
         # Display Model Evaluation Metrics
         display_model_metrics()
 
-        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
+        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn", use_container_width=True):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
@@ -795,11 +966,18 @@ def render_stroke_detection():
 
 
 # -------------------------
-# Vital Signs Tab Content
+# Vital Signs Tab Content with updated design
 # -------------------------
 def render_vital_signs():
-    st.title("📊 Adult Vital Signs Monitoring")
-    st.write("Enter your vital signs data to monitor your health status.")
+    st.markdown(
+        """
+        <div class="portal-container">
+            <h1 class="portal-title">📊 Vital Signs Monitoring</h1>
+            <p class="portal-subtitle">Enter your vital signs data to monitor your health status</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     
     # Display normal ranges reference
     st.subheader("📋 Normal Vital Signs Ranges")
@@ -846,7 +1024,7 @@ def render_vital_signs():
             oxygen_saturation = st.number_input("Oxygen Saturation (%)", min_value=0, max_value=100, value=98, key="oxygen_saturation")
             notes = st.text_area("Additional Notes", placeholder="Any symptoms or concerns...", key="vital_notes")
         
-        submit_button = st.form_submit_button("💾 Save Vital Signs")
+        submit_button = st.form_submit_button("💾 Save Vital Signs", use_container_width=True)
         
         if submit_button:
             if not patient_name:
@@ -941,11 +1119,18 @@ def render_vital_signs():
 
 
 # -------------------------
-# Doctor Appointment Portal (User Side)
+# Doctor Appointment Portal (User Side) with updated design
 # -------------------------
 def render_appointment_portal():
-    st.title("🩺 Doctor Appointment Booking")
-    st.write("Book an appointment with a neurologist or radiologist for consultation.")
+    st.markdown(
+        """
+        <div class="portal-container">
+            <h1 class="portal-title">🩺 Doctor Appointment</h1>
+            <p class="portal-subtitle">Book an appointment with a neurologist or radiologist for consultation</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Show current appointment status for this user
     st.write("### 📅 Your Appointment Requests")
@@ -986,7 +1171,7 @@ def render_appointment_portal():
                 ],
                 key="appt_doctor",
             )
-        submit = st.form_submit_button("📩 Send Appointment Request")
+        submit = st.form_submit_button("📩 Send Appointment Request", use_container_width=True)
 
         if submit:
             if not appt_patient_name or not appt_mobile:
@@ -1036,19 +1221,19 @@ def render_admin_appointments():
             
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
-                if st.button(f"✅ Approve", key=f"approve_{idx}"):
+                if st.button(f"✅ Approve", key=f"approve_{idx}", use_container_width=True):
                     st.session_state.appointments[idx]["status"] = "Approved"
                     save_appointments_to_file()
                     st.success(f"Appointment approved for {appt['patient_name']}")
                     st.rerun()
             with col2:
-                if st.button(f"❌ Reject", key=f"reject_{idx}"):
+                if st.button(f"❌ Reject", key=f"reject_{idx}", use_container_width=True):
                     st.session_state.appointments[idx]["status"] = "Rejected"
                     save_appointments_to_file()
                     st.error(f"Appointment rejected for {appt['patient_name']}")
                     st.rerun()
             with col3:
-                if st.button(f"🗑 Delete", key=f"delete_{idx}"):
+                if st.button(f"🗑 Delete", key=f"delete_{idx}", use_container_width=True):
                     removed = st.session_state.appointments.pop(idx)
                     save_appointments_to_file()
                     st.info(f"Deleted appointment for {removed['patient_name']}")
@@ -1057,10 +1242,19 @@ def render_admin_appointments():
 
 
 # -------------------------
-# Post-Stroke Care Recommendations Function
+# Post-Stroke Care Recommendations Function with updated design
 # -------------------------
 def render_post_stroke_care():
-    st.title("🌿 Post-Stroke Care & Lifestyle Recommendations")
+    st.markdown(
+        """
+        <div class="portal-container">
+            <h1 class="portal-title">🌿 Post-Stroke Care</h1>
+            <p class="portal-subtitle">Lifestyle recommendations for better recovery outcomes</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
     st.write(
         "After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. "
         "Here are your daily care recommendations:"
@@ -1071,22 +1265,24 @@ def render_post_stroke_care():
     <style>
     .recommendation-box {
         border: 2px solid #4CAF50;
-        border-radius: 10px;
-        padding: 15px;
-        margin: 10px 0;
-        background-color: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 18px;
+        margin: 12px 0;
+        background-color: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
     }
     .recommendation-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
     .recommendation-title {
         font-weight: bold;
         color: #2E7D32;
         font-size: 18px;
+        font-family: 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     }
     .recommendation-time {
         color: #666;
@@ -1094,10 +1290,12 @@ def render_post_stroke_care():
         background-color: #E8F5E8;
         padding: 4px 8px;
         border-radius: 15px;
+        font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
     }
     .recommendation-content {
         color: #333;
         line-height: 1.6;
+        font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -1216,7 +1414,7 @@ else:
         render_user_app()
 
 # -------------------------
-# Footer with "created by Sathish"
+# Footer with "created by Sathish" - updated design
 # -------------------------
 st.markdown(
     """
