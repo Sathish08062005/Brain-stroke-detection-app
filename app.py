@@ -11,6 +11,272 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
+import base64
+
+# -------------------------
+# Background Image Function
+# -------------------------
+def set_background_image():
+    # Convert the uploaded JPG to base64 for background
+    try:
+        # Read the uploaded image file
+        with open("1000271919.jpg", "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/jpg;base64,{encoded_string}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            /* Add overlay for better readability */
+            .stApp::before {{
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.85);
+                z-index: -1;
+            }}
+            
+            /* Style main containers for better visibility */
+            .main .block-container {{
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                padding: 2.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+                border: 1px solid #e0e0e0;
+                backdrop-filter: blur(5px);
+            }}
+            
+            /* Style sidebar */
+            .css-1d391kg {{
+                background: rgba(255, 255, 255, 0.95) !important;
+                backdrop-filter: blur(5px);
+            }}
+            
+            /* Style headers and text */
+            h1, h2, h3, h4, h5, h6 {{
+                color: #1a237e !important;
+                font-family: 'Arial', sans-serif;
+            }}
+            
+            .stMarkdown {{
+                color: #37474f !important;
+            }}
+            
+            /* Style buttons */
+            .stButton>button {{
+                background-color: #303f9f;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0.7rem 1.5rem;
+                font-weight: bold;
+                transition: all 0.3s ease;
+            }}
+            
+            .stButton>button:hover {{
+                background-color: #1a237e;
+                transform: translateY(-2px);
+            }}
+            
+            /* Style input fields */
+            .stTextInput>div>div>input {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px;
+            }}
+            
+            .stNumberInput>div>div>input {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px;
+            }}
+            
+            .stTextArea>div>div>textarea {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px;
+            }}
+            
+            /* Style select boxes */
+            .stSelectbox>div>div {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px;
+            }}
+            
+            /* Style file uploader */
+            .stFileUploader>div {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px;
+            }}
+            
+            /* Style tabs */
+            .stTabs [data-baseweb="tab-list"] {{
+                gap: 2px;
+            }}
+            
+            .stTabs [data-baseweb="tab"] {{
+                height: 50px;
+                white-space: pre-wrap;
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px 8px 0px 0px;
+                gap: 1px;
+                padding-top: 10px;
+                padding-bottom: 10px;
+                font-weight: 600;
+            }}
+            
+            .stTabs [aria-selected="true"] {{
+                background-color: rgba(48, 63, 159, 0.95) !important;
+                color: white !important;
+            }}
+            
+            /* Style the footer */
+            .footer {{
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                padding: 12px 20px;
+                color: #1a237e;
+                font-size: 16px;
+                font-weight: bold;
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 8px;
+                margin: 15px;
+                z-index: 999;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border: 1px solid #e0e0e0;
+            }}
+            
+            /* Style recommendation boxes for better visibility */
+            .recommendation-box {{
+                border: 2px solid #4CAF50;
+                border-radius: 12px;
+                padding: 18px;
+                margin: 12px 0;
+                background-color: rgba(255, 255, 255, 0.95);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }}
+            
+            /* Style download buttons */
+            .download-btn {{
+                background: linear-gradient(45deg, #4CAF50, #45a049);
+                color: white;
+                border: none;
+                padding: 15px 25px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                margin: 10px 5px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-decoration: none;
+                display: inline-block;
+                text-align: center;
+            }}
+            
+            .download-btn:hover {{
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }}
+            
+            /* Ensure all content is readable */
+            .element-container {{
+                background: transparent;
+            }}
+            
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    except Exception as e:
+        # Fallback to a solid color background if the image isn't available
+        st.markdown(
+            """
+            <style>
+            .stApp {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+# -------------------------
+# App Download Section
+# -------------------------
+def render_app_download():
+    st.markdown("---")
+    st.subheader("📱 Download Our Mobile App")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div style='background: rgba(255,255,255,0.95); padding: 20px; border-radius: 15px; border: 2px solid #4CAF50;'>
+            <h3 style='color: #1a237e;'>🚀 Enhanced Mobile Experience</h3>
+            <p>Get the full NeuroNexusAI experience on your mobile device:</p>
+            <ul>
+                <li>📸 Instant scan upload from camera</li>
+                <li>🔔 Push notifications for results</li>
+                <li>📊 Offline vital signs tracking</li>
+                <li>🔄 Real-time sync with web app</li>
+                <li>🏥 Emergency contact integration</li>
+                <li>💊 Medication reminders</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style='text-align: center; padding: 20px;'>
+            <h4 style='color: #1a237e;'>Download Now</h4>
+            <p>Available on both platforms</p>
+            
+            <div style='margin: 20px 0;'>
+                <a href='https://play.google.com/store/apps/details?id=com.neuronexusai.stroke' class='download-btn' style='background: #4CAF50;'>
+                    🟢 Google Play
+                </a>
+            </div>
+            
+            <div style='margin: 20px 0;'>
+                <a href='https://apps.apple.com/app/neuronexusai-stroke-detection' class='download-btn' style='background: #007AFF;'>
+                    🔵 App Store
+                </a>
+            </div>
+            
+            <div style='margin: 20px 0;'>
+                <a href='https://neuronexusai.com/app/NeuroNexusAI.apk' class='download-btn' style='background: #FF6B35;'>
+                    📥 Direct APK Download
+                </a>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # QR Code for mobile download
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("""
+        <div style='text-align: center; background: white; padding: 20px; border-radius: 15px;'>
+            <h4 style='color: #1a237e;'>📲 Scan to Download</h4>
+            <p>Use your phone's camera to scan the QR code</p>
+            <div style='background: white; padding: 20px; display: inline-block; border-radius: 10px;'>
+                <img src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://neuronexusai.com/download' width='200' height='200'>
+            </div>
+            <p style='margin-top: 15px; font-size: 12px; color: #666;'>
+                Points to: https://neuronexusai.com/download
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -73,7 +339,10 @@ def load_vital_signs_from_file():
 # -------------------------
 # Page Config
 # -------------------------
-st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
+st.set_page_config(page_title="🧠 NeuroNexusAI Mobile App", layout="centered")
+
+# Set the background image
+set_background_image()
 
 # -------------------------
 # App Branding
@@ -81,6 +350,7 @@ st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 st.markdown(
     """ 
 #  🧠 NeuroNexusAI 
+### Advanced Stroke Detection & Healthcare Mobile App
  """,
     unsafe_allow_html=True,
 )
@@ -385,41 +655,44 @@ def import_users_json(file_bytes):
 # UI: Login
 # -------------------------
 def render_login():
-    st.title("🔐 Login Portal")
+    st.title("🔐 Mobile App Login")
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
     colA, colB = st.columns([1, 1])
     with colA:
         if st.button("Login", use_container_width=True, key="login_btn"):
             if login(username, password):
-                st.success("Login successful ✅")
+                st.success("Mobile app login successful ✅")
                 st.rerun()
             else:
                 st.error("❌ Invalid Username or Password")
     with colB:
-        st.caption("No registration here. Users must be created by the admin.")
+        st.caption("Access your mobile app account")
+    
+    # Show app download link on login page
+    render_app_download()
 
 
 # -------------------------
 # Admin Dashboard
 # -------------------------
 def render_admin_dashboard():
-    st.title("🛡 Admin Dashboard")
+    st.title("🛡 Mobile App Admin Dashboard")
     st.write(f"Welcome, {st.session_state.username} (admin)")
 
     with st.sidebar:
-        st.header("⚙ Admin Actions")
+        st.header("⚙ Mobile App Admin")
         if st.button("🚪 Logout", key="admin_logout_btn"):
             logout()
             st.rerun()
 
     # Updated tabs for admin with separate appointment management tab
     tabs = st.tabs(
-        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "🩺 Appointment Requests"]
+        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "🩺 Appointment Requests", "📱 App Downloads"]
     )
 
     with tabs[0]:
-        st.subheader("Create a new user")
+        st.subheader("Create a new mobile app user")
         new_username = st.text_input("New Username", key="new_username")
         new_password = st.text_input("New Password", type="password", key="new_user_password")
         role = st.selectbox("Role", ["user", "admin"], index=0, key="new_user_role")
@@ -428,7 +701,7 @@ def render_admin_dashboard():
             (st.success if ok else st.error)(msg)
 
     with tabs[1]:
-        st.subheader("All Users")
+        st.subheader("All Mobile App Users")
         users = st.session_state.users
         if users:
             for uname, meta in users.items():
@@ -447,10 +720,10 @@ def render_admin_dashboard():
                         ok, msg = delete_user(uname)
                         (st.success if ok else st.error)(msg)
         else:
-            st.info("No users yet.")
+            st.info("No mobile app users yet.")
 
     with tabs[2]:
-        st.subheader("Export / Import Users")
+        st.subheader("Export / Import Mobile App Users")
         st.download_button(
             "📥 Download users.json",
             data=export_users_json(),
@@ -464,7 +737,7 @@ def render_admin_dashboard():
             (st.success if ok else st.error)(msg)
 
     with tabs[3]:
-        st.subheader("Telegram Settings")
+        st.subheader("Mobile App Telegram Settings")
         bot_token = st.text_input(
             "BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token"
         )
@@ -474,11 +747,15 @@ def render_admin_dashboard():
         if st.button("Save Telegram Settings", key="save_telegram_btn"):
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
-            st.success("Saved Telegram settings.")
+            st.success("Saved mobile app Telegram settings.")
 
     # Doctor Appointment Management in separate tab
     with tabs[4]:
         render_admin_appointments()
+
+    # App Downloads tab
+    with tabs[5]:
+        render_app_download()
 
     st.divider()
     st.subheader("📝 Recently Sent Reports")
@@ -496,7 +773,7 @@ def render_admin_dashboard():
 # -------------------------
 def render_user_app():
     # Use tabs for user interface
-    tabs = st.tabs(["🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
+    tabs = st.tabs(["🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", "🌿 Post-Stroke Care", "📱 Download App"])
     
     # Tab 1: Stroke Detection
     with tabs[0]:
@@ -514,9 +791,13 @@ def render_user_app():
     with tabs[3]:
         render_post_stroke_care()
     
+    # Tab 5: Download App
+    with tabs[4]:
+        render_app_download()
+    
     # Sidebar (common for all tabs)
     with st.sidebar:
-        st.header("👤 Account")
+        st.header("👤 Mobile App Account")
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
@@ -527,8 +808,8 @@ def render_user_app():
 # Stroke Detection Tab Content
 # -------------------------
 def render_stroke_detection():
-    st.title("🧠 Stroke Detection from CT/MRI Scans")
-    st.write("Upload a brain scan image to check stroke probability and view affected regions.")
+    st.title("🧠 Mobile Stroke Detection")
+    st.write("Use our mobile app to upload brain scan images and check stroke probability instantly.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -542,11 +823,11 @@ def render_stroke_detection():
 
     st.write("---")
 
-    st.sidebar.header("📞 Emergency Contact Settings")
+    st.sidebar.header("📞 Mobile App Emergency Settings")
     relative_name = st.sidebar.text_input("Relative Name", value="Brother", key="user_relative_name")
     relative_number = st.sidebar.text_input("Relative Phone Number", value="9025845243", key="user_relative_number")
 
-    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image", type=["jpg", "png", "jpeg"], key="upload_scan")
+    uploaded_file = st.file_uploader("📤 Upload CT/MRI Image from Mobile", type=["jpg", "png", "jpeg"], key="upload_scan")
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -557,7 +838,7 @@ def render_stroke_detection():
         stroke_percent = stroke_prob * 100
         no_stroke_percent = no_stroke_prob * 100
 
-        st.subheader("🧾 Patient Information")
+        st.subheader("🧾 Mobile App Patient Information")
         st.write(f"Name: {patient_name}")
         st.write(f"Age: {patient_age}")
         st.write(f"Gender: {patient_gender}")
@@ -565,30 +846,30 @@ def render_stroke_detection():
         st.write(f"Contact: {patient_contact}")
         st.write(f"Address: {patient_address}")
 
-        st.subheader("🔍 Prediction Result:")
+        st.subheader("🔍 Mobile App Prediction Result:")
         st.write(f"🩸 Stroke Probability: {stroke_percent:.2f}%")
         st.write(f"✅ No Stroke Probability: {no_stroke_percent:.2f}%")
 
         if stroke_percent > 80:
             st.error("🔴 Immediate attention needed — very high stroke risk!")
-            st.warning("⏱ Suggested Action: Seek emergency care within 1–3 hours.")
+            st.warning("⏱ Mobile App Suggested Action: Seek emergency care within 1–3 hours.")
             st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
         elif 60 < stroke_percent <= 80:
             st.warning("🟠 Moderate to high stroke risk — medical consultation advised.")
-            st.info("⏱ Suggested Action: Get hospital check-up within 6 hours.")
+            st.info("⏱ Mobile App Suggested Action: Get hospital check-up within 6 hours.")
             st.markdown("📞 Emergency Call: [Call 108 (India)](tel:108)")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
         elif 50 < stroke_percent <= 60:
             st.info("🟡 Slightly above normal stroke risk — further monitoring suggested.")
-            st.info("⏱ Suggested Action: Visit a doctor within 24 hours.")
+            st.info("⏱ Mobile App Suggested Action: Visit a doctor within 24 hours.")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
         elif no_stroke_percent > 90:
             st.success("🟢 Very low stroke risk — scan looks healthy.")
-            st.info("⏱ Suggested Action: Routine monitoring only.")
+            st.info("⏱ Mobile App Suggested Action: Routine monitoring only.")
         elif 70 < no_stroke_percent <= 90:
             st.info("🟡 Low stroke risk — but caution advised if symptoms exist.")
-            st.info("⏱ Suggested Action: Consult a doctor if symptoms appear.")
+            st.info("⏱ Mobile App Suggested Action: Consult a doctor if symptoms appear.")
             st.markdown(f"📞 Call {relative_name}: [Call {relative_number}](tel:{relative_number})")
 
         if stroke_prob > 0.5:
@@ -598,12 +879,12 @@ def render_stroke_detection():
         # Display Model Evaluation Metrics
         display_model_metrics()
 
-        if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
+        if st.button("💾 Save in Mobile App & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
             CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
 
             message = (
-                "🧾 Patient Stroke Report\n\n"
+                "🧾 Mobile App Patient Stroke Report\n\n"
                 f"👤 Name: {patient_name}\n"
                 f"🎂 Age: {patient_age}\n"
                 f"⚧ Gender: {patient_gender}\n"
@@ -617,7 +898,7 @@ def render_stroke_detection():
             try:
                 response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
                 if response.status_code == 200:
-                    st.success("✅ Patient report sent to Telegram successfully!")
+                    st.success("✅ Patient report sent from mobile app to Telegram successfully!")
                     st.session_state.report_log.append(
                         {
                             "patient_name": patient_name,
@@ -627,20 +908,20 @@ def render_stroke_detection():
                         }
                     )
                 else:
-                    st.error("❌ Failed to send report to Telegram.")
+                    st.error("❌ Failed to send report from mobile app to Telegram.")
             except Exception as e:
-                st.error(f"❌ Error sending to Telegram: {e}")
+                st.error(f"❌ Mobile app error sending to Telegram: {e}")
 
 
 # -------------------------
 # Vital Signs Tab Content
 # -------------------------
 def render_vital_signs():
-    st.title("📊 Adult Vital Signs Monitoring")
-    st.write("Enter your vital signs data to monitor your health status.")
-    
+    st.title("📊 Mobile App Vital Signs Monitoring")
+    st.write("Use our mobile app to track and monitor your vital signs data.")
+
     # Display normal ranges reference
-    st.subheader("📋 Normal Vital Signs Ranges")
+    st.subheader("📋 Mobile App Normal Vital Signs Ranges")
     
     # Create a table for normal ranges
     normal_ranges = {
@@ -667,7 +948,7 @@ def render_vital_signs():
     st.write("---")
     
     # Vital Signs Input Form
-    st.subheader("🩺 Enter Your Vital Signs")
+    st.subheader("🩺 Mobile App Vital Signs Entry")
     
     with st.form(key="vital_signs_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -684,7 +965,7 @@ def render_vital_signs():
             oxygen_saturation = st.number_input("Oxygen Saturation (%)", min_value=0, max_value=100, value=98, key="oxygen_saturation")
             notes = st.text_area("Additional Notes", placeholder="Any symptoms or concerns...", key="vital_notes")
         
-        submit_button = st.form_submit_button("💾 Save Vital Signs")
+        submit_button = st.form_submit_button("💾 Save in Mobile App")
         
         if submit_button:
             if not patient_name:
@@ -728,16 +1009,16 @@ def render_vital_signs():
                 st.session_state.vital_signs.append(vital_data)
                 save_vital_signs_to_file()
                 
-                st.success("✅ Vital signs saved successfully!")
+                st.success("✅ Vital signs saved in mobile app successfully!")
                 
                 # Display warnings if any
                 if warnings:
-                    st.warning("Health Alerts:")
+                    st.warning("Mobile App Health Alerts:")
                     for warning in warnings:
                         st.write(warning)
                 
                 # Show summary
-                st.subheader("📈 Current Reading Summary")
+                st.subheader("📈 Mobile App Current Reading Summary")
                 summary_cols = st.columns(3)
                 with summary_cols[0]:
                     st.metric("Heart Rate", f"{heart_rate} bpm")
@@ -750,7 +1031,7 @@ def render_vital_signs():
     
     # Display previous vital signs records
     st.write("---")
-    st.subheader("📋 Previous Vital Signs Records")
+    st.subheader("📋 Mobile App Previous Vital Signs Records")
     
     user_vitals = [
         v for v in st.session_state.vital_signs 
@@ -758,13 +1039,13 @@ def render_vital_signs():
     ]
     
     if not user_vitals:
-        st.info("No vital signs records yet.")
+        st.info("No mobile app vital signs records yet.")
     else:
         # Show latest 5 records
         recent_vitals = user_vitals[::-1][:5]
         
         for i, vital in enumerate(recent_vitals):
-            with st.expander(f"Record {i+1} - {vital['timestamp'][:16]}"):
+            with st.expander(f"Mobile App Record {i+1} - {vital['timestamp'][:16]}"):
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"Patient: {vital['patient_name']}")
@@ -782,16 +1063,16 @@ def render_vital_signs():
 # Doctor Appointment Portal (User Side)
 # -------------------------
 def render_appointment_portal():
-    st.title("🩺 Doctor Appointment Booking")
-    st.write("Book an appointment with a neurologist or radiologist for consultation.")
+    st.title("🩺 Mobile App Doctor Appointment Booking")
+    st.write("Use our mobile app to book appointments with neurologists or radiologists.")
 
     # Show current appointment status for this user
-    st.write("### 📅 Your Appointment Requests")
+    st.write("### 📅 Your Mobile App Appointment Requests")
     user_appts = [
         a for a in st.session_state.appointments if a.get("requested_by") == st.session_state.username
     ]
     if not user_appts:
-        st.info("No appointment requests yet.")
+        st.info("No mobile app appointment requests yet.")
     else:
         for a in user_appts[::-1]:
             status = a.get("status", "Pending")
@@ -803,7 +1084,7 @@ def render_appointment_portal():
             )
     
     st.write("---")
-    st.subheader("📝 Book New Appointment")
+    st.subheader("📝 Mobile App Book New Appointment")
 
     with st.form(key="appointment_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -824,7 +1105,7 @@ def render_appointment_portal():
                 ],
                 key="appt_doctor",
             )
-        submit = st.form_submit_button("📩 Send Appointment Request")
+        submit = st.form_submit_button("📩 Send Mobile App Appointment Request")
 
         if submit:
             if not appt_patient_name or not appt_mobile:
@@ -842,7 +1123,7 @@ def render_appointment_portal():
                 }
                 st.session_state.appointments.append(appt)
                 save_appointments_to_file()
-                st.success("✅ Appointment request sent to Admin for approval.")
+                st.success("✅ Mobile app appointment request sent to Admin for approval.")
                 st.rerun()
 
 
@@ -850,9 +1131,9 @@ def render_appointment_portal():
 # Admin: Manage Doctor Appointments (color-coded buttons)
 # -------------------------
 def render_admin_appointments():
-    st.subheader("🩺 Doctor Appointment Requests")
+    st.subheader("🩺 Mobile App Doctor Appointment Requests")
     if not st.session_state.appointments:
-        st.info("No appointment requests yet.")
+        st.info("No mobile app appointment requests yet.")
         return
 
     for idx, appt in enumerate(st.session_state.appointments):
@@ -861,35 +1142,35 @@ def render_admin_appointments():
             st.write(f"Patient: {appt['patient_name']} ({appt.get('age', '')} yrs)")
             st.write(f"📞 {appt['mobile']} | 🩺 {appt['doctor']}")
             st.write(f"🗓 {appt['date']} at {appt['time']}")
-            st.write(f"🧑‍💻 Requested by: {appt.get('requested_by', 'unknown')}")
+            st.write(f"🧑‍💻 Requested via mobile app by: {appt.get('requested_by', 'unknown')}")
             
             # Status with color coding
             status = appt.get('status', 'Pending')
             if status == 'Approved':
-                st.success(f"📋 Status: {status}")
+                st.success(f"📋 Mobile App Status: {status}")
             elif status == 'Rejected':
-                st.error(f"📋 Status: {status}")
+                st.error(f"📋 Mobile App Status: {status}")
             else:
-                st.warning(f"📋 Status: {status}")
+                st.warning(f"📋 Mobile App Status: {status}")
             
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
                 if st.button(f"✅ Approve", key=f"approve_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Approved"
                     save_appointments_to_file()
-                    st.success(f"Appointment approved for {appt['patient_name']}")
+                    st.success(f"Mobile app appointment approved for {appt['patient_name']}")
                     st.rerun()
             with col2:
                 if st.button(f"❌ Reject", key=f"reject_{idx}"):
                     st.session_state.appointments[idx]["status"] = "Rejected"
                     save_appointments_to_file()
-                    st.error(f"Appointment rejected for {appt['patient_name']}")
+                    st.error(f"Mobile app appointment rejected for {appt['patient_name']}")
                     st.rerun()
             with col3:
                 if st.button(f"🗑 Delete", key=f"delete_{idx}"):
                     removed = st.session_state.appointments.pop(idx)
                     save_appointments_to_file()
-                    st.info(f"Deleted appointment for {removed['patient_name']}")
+                    st.info(f"Deleted mobile app appointment for {removed['patient_name']}")
                     st.rerun()
             st.write("---")
 
@@ -898,10 +1179,9 @@ def render_admin_appointments():
 # Post-Stroke Care Recommendations Function
 # -------------------------
 def render_post_stroke_care():
-    st.title("🌿 Post-Stroke Care & Lifestyle Recommendations")
+    st.title("🌿 Mobile App Post-Stroke Care")
     st.write(
-        "After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. "
-        "Here are your daily care recommendations:"
+        "Use our mobile app for daily stroke recovery tracking and lifestyle recommendations."
     )
 
     # Custom CSS for the box styling
@@ -909,17 +1189,17 @@ def render_post_stroke_care():
     <style>
     .recommendation-box {
         border: 2px solid #4CAF50;
-        border-radius: 10px;
-        padding: 15px;
-        margin: 10px 0;
-        background-color: #f9f9f9;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 18px;
+        margin: 12px 0;
+        background-color: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .recommendation-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
     .recommendation-title {
         font-weight: bold;
@@ -944,14 +1224,14 @@ def render_post_stroke_care():
     st.markdown("""
     <div class="recommendation-box">
         <div class="recommendation-header">
-            <div class="recommendation-title">🥗 Fruits & Vegetables</div>
+            <div class="recommendation-title">📱 Mobile App: Nutrition Tracking</div>
             <div class="recommendation-time">10:48am</div>
         </div>
         <div class="recommendation-content">
-            • Fresh fruits (berries, oranges, apples)<br>
-            • Leafy greens and colorful vegetables<br>
-            • Limit salt and processed foods<br>
-            • Drink plenty of water
+            • Track fruit & vegetable intake in app<br>
+            • Log water consumption daily<br>
+            • Monitor salt and processed foods<br>
+            • Set nutrition reminders
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -960,14 +1240,14 @@ def render_post_stroke_care():
     st.markdown("""
     <div class="recommendation-box">
         <div class="recommendation-header">
-            <div class="recommendation-title">💪 Physical Exercise</div>
+            <div class="recommendation-title">📱 Mobile App: Exercise Tracking</div>
             <div class="recommendation-time">02:30pm</div>
         </div>
         <div class="recommendation-content">
-            • Gentle yoga and stretching<br>
-            • Short walks daily<br>
-            • Balance exercises<br>
-            • Breathing exercises
+            • Log daily exercise in app<br>
+            • Track walking distance<br>
+            • Set exercise reminders<br>
+            • Monitor progress over time
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -976,14 +1256,14 @@ def render_post_stroke_care():
     st.markdown("""
     <div class="recommendation-box">
         <div class="recommendation-header">
-            <div class="recommendation-title">🧠 Mental Wellness</div>
+            <div class="recommendation-title">📱 Mobile App: Mental Wellness</div>
             <div class="recommendation-time">04:15pm</div>
         </div>
         <div class="recommendation-content">
-            • Meditation and mindfulness<br>
-            • Cognitive exercises<br>
-            • Social interaction<br>
-            • Stress management
+            • Daily mood tracking in app<br>
+            • Meditation timer<br>
+            • Cognitive exercise games<br>
+            • Stress level monitoring
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -992,14 +1272,14 @@ def render_post_stroke_care():
     st.markdown("""
     <div class="recommendation-box">
         <div class="recommendation-header">
-            <div class="recommendation-title">💊 Medication Schedule</div>
+            <div class="recommendation-title">📱 Mobile App: Medication Reminders</div>
             <div class="recommendation-time">08:00am & 08:00pm</div>
         </div>
         <div class="recommendation-content">
-            • Take prescribed medications on time<br>
-            • Regular blood pressure monitoring<br>
-            • Weekly doctor consultations<br>
-            • Follow rehabilitation program
+            • Set medication alarms in app<br>
+            • Track pill consumption<br>
+            • Blood pressure logging<br>
+            • Doctor visit scheduling
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1008,14 +1288,14 @@ def render_post_stroke_care():
     st.markdown("""
     <div class="recommendation-box">
         <div class="recommendation-header">
-            <div class="recommendation-title">😴 Sleep & Rest</div>
+            <div class="recommendation-title">📱 Mobile App: Sleep Tracking</div>
             <div class="recommendation-time">10:00pm</div>
         </div>
         <div class="recommendation-content">
-            • 7-8 hours of quality sleep<br>
-            • Regular sleep schedule<br>
-            • Relaxation techniques<br>
-            • Avoid caffeine before bed
+            • Log sleep hours in app<br>
+            • Set bedtime reminders<br>
+            • Track sleep quality<br>
+            • Monitor rest patterns
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1024,22 +1304,22 @@ def render_post_stroke_care():
     st.markdown("""
     <div class="recommendation-box">
         <div class="recommendation-header">
-            <div class="recommendation-title">📋 Daily Checklist</div>
+            <div class="recommendation-title">📱 Mobile App: Daily Checklist</div>
             <div class="recommendation-time">All Day</div>
         </div>
         <div class="recommendation-content">
-            • Monitor blood pressure twice daily<br>
-            • Take medications as prescribed<br>
-            • 30 minutes of light exercise<br>
-            • Healthy meals with fruits/vegetables<br>
-            • Stay hydrated (8 glasses water)<br>
-            • Practice relaxation techniques
+            • Use app for BP monitoring<br>
+            • Medication tracking feature<br>
+            • Exercise logging<br>
+            • Nutrition diary<br>
+            • Water intake tracker<br>
+            • Mood and symptom recording
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     st.write("---")
-    st.info("💡 Tip: Follow these recommendations consistently for better recovery outcomes. Adjust timings based on your personal schedule and doctor's advice.")
+    st.info("💡 Mobile App Tip: Download our mobile app for enhanced features like push notifications, offline tracking, and real-time health monitoring.")
 
 
 # -------------------------
@@ -1058,21 +1338,8 @@ else:
 # -------------------------
 st.markdown(
     """
-    <style>
-    .footer {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        padding: 10px;
-        color: #FF69B4;
-        font-size: 14px;
-        font-weight: bold;
-        background-color: transparent;
-        z-index: 999;
-    }
-    </style>
     <div class="footer">
-        created by Sathish
+        Mobile App created by Sathish
     </div>
     """,
     unsafe_allow_html=True
