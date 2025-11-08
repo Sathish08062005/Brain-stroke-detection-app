@@ -13,67 +13,101 @@ import seaborn as sns
 import pandas as pd
 import threading
 import time
+import queue
 import subprocess
 import sys
 
 # -------------------------
-# Voice Assistant with Fallback
+# Improved Voice Assistant with Queue System
 # -------------------------
-def install_pyttsx3():
-    """Install pyttsx3 if not available"""
-    try:
-        import pyttsx3
-        return True
-    except ImportError:
-        st.warning("Installing pyttsx3 for voice features...")
+class VoiceAssistant:
+    def _init_(self):
+        self.engine = None
+        self.speech_queue = queue.Queue()
+        self.is_speaking = False
+        self.initialize_engine()
+        
+    def initialize_engine(self):
+        """Initialize the text-to-speech engine"""
         try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "pyttsx3"])
-            import pyttsx3
-            return True
-        except:
-            return False
-
-# Try to initialize voice engine with fallback
-def initialize_voice_engine():
-    """Initialize the text-to-speech engine with fallback"""
-    try:
-        if install_pyttsx3():
-            import pyttsx3
-            engine = pyttsx3.init()
+            # Try to install pyttsx3 if not available
+            try:
+                import pyttsx3
+            except ImportError:
+                st.warning("Installing pyttsx3 for voice features...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "pyttsx3"])
+                import pyttsx3
+            
+            self.engine = pyttsx3.init()
             # Set voice properties
-            voices = engine.getProperty('voices')
+            voices = self.engine.getProperty('voices')
             if len(voices) > 1:
-                engine.setProperty('voice', voices[1].id)  # Female voice if available
-            engine.setProperty('rate', 150)  # Speed of speech
-            engine.setProperty('volume', 0.8)  # Volume level
-            return engine
-        else:
-            st.warning("Voice features disabled. pyttsx3 installation failed.")
-            return None
-    except Exception as e:
-        st.warning(f"Voice assistant initialization failed: {e}")
-        return None
-
-def speak_text(text, engine):
-    """Speak text using TTS engine in a separate thread"""
-    def speak():
-        try:
-            engine.say(text)
-            engine.runAndWait()
+                self.engine.setProperty('voice', voices[1].id)  # Female voice if available
+            self.engine.setProperty('rate', 150)  # Speed of speech
+            self.engine.setProperty('volume', 0.8)  # Volume level
+            st.success("🔊 Voice assistant initialized successfully!")
+            
         except Exception as e:
-            print(f"Speech error: {e}")
+            st.warning(f"Voice features disabled: {e}")
+            self.engine = None
     
-    if engine is not None:
-        thread = threading.Thread(target=speak)
-        thread.daemon = True
+    def speak_text(self, text):
+        """Add text to speech queue"""
+        if self.engine is None:
+            st.info(f"🔊 Voice Message: {text}")
+            return
+        
+        self.speech_queue.put(text)
+        if not self.is_speaking:
+            self._start_speaking()
+    
+    def _start_speaking(self):
+        """Start processing speech queue"""
+        def speak_worker():
+            self.is_speaking = True
+            while not self.speech_queue.empty():
+                try:
+                    text = self.speech_queue.get()
+                    # Create new engine instance for each speech to avoid run loop issues
+                    try:
+                        import pyttsx3
+                        temp_engine = pyttsx3.init()
+                        voices = temp_engine.getProperty('voices')
+                        if len(voices) > 1:
+                            temp_engine.setProperty('voice', voices[1].id)
+                        temp_engine.setProperty('rate', 150)
+                        temp_engine.setProperty('volume', 0.8)
+                        
+                        temp_engine.say(text)
+                        temp_engine.runAndWait()
+                        temp_engine.stop()
+                        
+                    except Exception as e:
+                        st.warning(f"Speech error: {e}")
+                    
+                    self.speech_queue.task_done()
+                    time.sleep(0.5)  # Small delay between speeches
+                    
+                except Exception as e:
+                    print(f"Error in speech worker: {e}")
+                    break
+            
+            self.is_speaking = False
+        
+        # Start speaking in a separate thread
+        thread = threading.Thread(target=speak_worker, daemon=True)
         thread.start()
-    else:
-        # Fallback: Show text message when voice is not available
-        st.info(f"🔊 Voice Message: {text}")
 
-def welcome_user(username, role, engine):
+# Create global voice assistant instance
+def initialize_voice_assistant():
+    return VoiceAssistant()
+
+# -------------------------
+# Voice Guidance Functions
+# -------------------------
+def welcome_user(username, role, voice_assistant):
     """Welcome message for users"""
-    welcome_message = f"Welcome to our AI {username}! You are logged in as {role}. "
+    welcome_message = f"Welcome to our A I {username}! You are logged in as {role}. "
     
     if role == "admin":
         welcome_message += """
@@ -83,22 +117,22 @@ def welcome_user(username, role, engine):
         """
     else:
         welcome_message += """
-        Welcome to Neuro Nexus AI Stroke Detection System. Here's how to use the portal:
-        Tab 1: Stroke Detection - Upload CT or MRI scans to check for stroke probability
-        Tab 2: Vital Signs - Monitor and record your health vitals like heart rate and blood pressure
-        Tab 3: Book Appointment - Schedule consultations with specialist doctors
-        Tab 4: Post-Stroke Care - Get personalized recovery recommendations and lifestyle guidance
+        Welcome to Neuro Nexus A I Stroke Detection System. Here's how to use the portal:
+        Tab 1: Stroke Detection - Upload CT or MRI scans to check for stroke probability.
+        Tab 2: Vital Signs - Monitor and record your health vitals like heart rate and blood pressure.
+        Tab 3: Book Appointment - Schedule consultations with specialist doctors.
+        Tab 4: Post-Stroke Care - Get personalized recovery recommendations and lifestyle guidance.
         Feel free to explore each section for comprehensive stroke care management.
         """
     
-    speak_text(welcome_message, engine)
+    voice_assistant.speak_text(welcome_message)
 
-def provide_guidance(current_tab, engine):
+def provide_guidance(current_tab, voice_assistant):
     """Provide contextual guidance based on current tab"""
     guidance_messages = {
         "Stroke Detection": """
         In the Stroke Detection section, you can upload brain scan images. 
-        The AI will analyze them for stroke probability and highlight affected regions. 
+        The A I will analyze them for stroke probability and highlight affected regions. 
         Make sure to fill in patient details before uploading the scan.
         """,
         
@@ -121,14 +155,14 @@ def provide_guidance(current_tab, engine):
     }
     
     if current_tab in guidance_messages:
-        speak_text(guidance_messages[current_tab], engine)
+        voice_assistant.speak_text(guidance_messages[current_tab])
 
 # -------------------------
 # Users & Appointments file for persistence
 # -------------------------
 USERS_FILE = "users.json"
-APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
-VITAL_SIGNS_FILE = "vital_signs.json"   # persistent storage for vital signs
+APPOINTMENTS_FILE = "appointments.json"
+VITAL_SIGNS_FILE = "vital_signs.json"
 
 def save_users_to_file():
     try:
@@ -137,7 +171,6 @@ def save_users_to_file():
     except Exception as e:
         st.error(f"Error saving users file: {e}")
 
-# Appointment persistence helpers
 def save_appointments_to_file():
     try:
         with open(APPOINTMENTS_FILE, "w") as f:
@@ -156,7 +189,6 @@ def load_appointments_from_file():
             return []
     return []
 
-# Vital Signs persistence helpers
 def save_vital_signs_to_file():
     try:
         with open(VITAL_SIGNS_FILE, "w") as f:
@@ -240,26 +272,17 @@ def highlight_stroke_regions(image):
 # Model Evaluation Metrics Functions
 # -------------------------
 def generate_model_metrics():
-    """
-    Generate sample model evaluation metrics for demonstration.
-    In a real application, you would use your test dataset here.
-    """
-    # Sample data for demonstration - replace with actual test data
     np.random.seed(42)
-    
-    # Simulate predictions and true labels for 100 samples
-    y_true = np.random.choice([0, 1], size=100, p=[0.3, 0.7])  # 30% negative, 70% positive
+    y_true = np.random.choice([0, 1], size=100, p=[0.3, 0.7])
     y_pred_proba = np.random.rand(100)
     y_pred = (y_pred_proba > 0.5).astype(int)
     
-    # Calculate metrics
     cm = confusion_matrix(y_true, y_pred)
     fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
     roc_auc = auc(fpr, tpr)
     precision, recall, _ = precision_recall_curve(y_true, y_pred_proba)
     pr_auc = auc(recall, precision)
     
-    # Calculate additional metrics
     tn, fp, fn, tp = cm.ravel()
     accuracy = (tp + tn) / (tp + tn + fp + fn)
     precision_score = tp / (tp + fp) if (tp + fp) > 0 else 0
@@ -267,22 +290,13 @@ def generate_model_metrics():
     f1_score = 2 * (precision_score * recall_score) / (precision_score + recall_score) if (precision_score + recall_score) > 0 else 0
     
     return {
-        'confusion_matrix': cm,
-        'fpr': fpr,
-        'tpr': tpr,
-        'roc_auc': roc_auc,
-        'precision_curve': precision,
-        'recall_curve': recall,
-        'pr_auc': pr_auc,
-        'accuracy': accuracy,
-        'precision': precision_score,
-        'recall': recall_score,
-        'f1_score': f1_score,
-        'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn
+        'confusion_matrix': cm, 'fpr': fpr, 'tpr': tpr, 'roc_auc': roc_auc,
+        'precision_curve': precision, 'recall_curve': recall, 'pr_auc': pr_auc,
+        'accuracy': accuracy, 'precision': precision_score, 'recall': recall_score,
+        'f1_score': f1_score, 'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn
     }
 
 def plot_confusion_matrix(cm):
-    """Plot confusion matrix"""
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
                 xticklabels=['No Stroke', 'Stroke'],
@@ -293,7 +307,6 @@ def plot_confusion_matrix(cm):
     return fig
 
 def plot_roc_curve(fpr, tpr, roc_auc):
-    """Plot ROC curve"""
     fig, ax = plt.subplots(figsize=(6, 5))
     ax.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
     ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -306,7 +319,6 @@ def plot_roc_curve(fpr, tpr, roc_auc):
     return fig
 
 def plot_precision_recall_curve(precision, recall, pr_auc):
-    """Plot Precision-Recall curve"""
     fig, ax = plt.subplots(figsize=(6, 5))
     ax.plot(recall, precision, color='blue', lw=2, label=f'PR curve (AUC = {pr_auc:.2f})')
     ax.set_xlim([0.0, 1.0])
@@ -318,57 +330,32 @@ def plot_precision_recall_curve(precision, recall, pr_auc):
     return fig
 
 def display_model_metrics():
-    """Display all model evaluation metrics"""
     st.subheader("📊 Model Evaluation Metrics")
-    
-    # Generate metrics
     metrics = generate_model_metrics()
     
-    # Display key metrics in columns
     col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Accuracy", f"{metrics['accuracy']:.2%}")
-    with col2:
-        st.metric("Precision", f"{metrics['precision']:.2%}")
-    with col3:
-        st.metric("Recall", f"{metrics['recall']:.2%}")
-    with col4:
-        st.metric("F1-Score", f"{metrics['f1_score']:.2%}")
+    with col1: st.metric("Accuracy", f"{metrics['accuracy']:.2%}")
+    with col2: st.metric("Precision", f"{metrics['precision']:.2%}")
+    with col3: st.metric("Recall", f"{metrics['recall']:.2%}")
+    with col4: st.metric("F1-Score", f"{metrics['f1_score']:.2%}")
     
-    # Display confusion matrix details
     st.write("Confusion Matrix Details:")
     cm_col1, cm_col2, cm_col3, cm_col4 = st.columns(4)
-    with cm_col1:
-        st.metric("True Positives", metrics['tp'])
-    with cm_col2:
-        st.metric("True Negatives", metrics['tn'])
-    with cm_col3:
-        st.metric("False Positives", metrics['fp'])
-    with cm_col4:
-        st.metric("False Negatives", metrics['fn'])
+    with cm_col1: st.metric("True Positives", metrics['tp'])
+    with cm_col2: st.metric("True Negatives", metrics['tn'])
+    with cm_col3: st.metric("False Positives", metrics['fp'])
+    with cm_col4: st.metric("False Negatives", metrics['fn'])
     
-    # Plot metrics
     col1, col2 = st.columns(2)
-    with col1:
-        st.pyplot(plot_confusion_matrix(metrics['confusion_matrix']))
-    with col2:
-        st.pyplot(plot_roc_curve(metrics['fpr'], metrics['tpr'], metrics['roc_auc']))
-    
-    # Precision-Recall curve
+    with col1: st.pyplot(plot_confusion_matrix(metrics['confusion_matrix']))
+    with col2: st.pyplot(plot_roc_curve(metrics['fpr'], metrics['tpr'], metrics['roc_auc']))
     st.pyplot(plot_precision_recall_curve(metrics['precision_curve'], metrics['recall_curve'], metrics['pr_auc']))
     
-    # Model performance summary
     st.subheader("📈 Performance Summary")
     performance_data = {
         'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC AUC', 'PR AUC'],
-        'Value': [
-            f"{metrics['accuracy']:.2%}",
-            f"{metrics['precision']:.2%}",
-            f"{metrics['recall']:.2%}",
-            f"{metrics['f1_score']:.2%}",
-            f"{metrics['roc_auc']:.2%}",
-            f"{metrics['pr_auc']:.2%}"
-        ]
+        'Value': [f"{metrics['accuracy']:.2%}", f"{metrics['precision']:.2%}", f"{metrics['recall']:.2%}",
+                 f"{metrics['f1_score']:.2%}", f"{metrics['roc_auc']:.2%}", f"{metrics['pr_auc']:.2%}"]
     }
     st.table(pd.DataFrame(performance_data))
 
@@ -406,8 +393,8 @@ def ensure_state():
         st.session_state.appointments = load_appointments_from_file()
     if "vital_signs" not in st.session_state:
         st.session_state.vital_signs = load_vital_signs_from_file()
-    if "voice_engine" not in st.session_state:
-        st.session_state.voice_engine = initialize_voice_engine()
+    if "voice_assistant" not in st.session_state:
+        st.session_state.voice_assistant = initialize_voice_assistant()
     if "welcome_spoken" not in st.session_state:
         st.session_state.welcome_spoken = False
 
@@ -422,7 +409,7 @@ def login(username, password):
         st.session_state.logged_in = True
         st.session_state.username = username
         st.session_state.role = users[username]["role"]
-        st.session_state.welcome_spoken = False  # Reset welcome flag on login
+        st.session_state.welcome_spoken = False
         return True
     return False
 
@@ -499,22 +486,19 @@ def render_admin_dashboard():
 
     # Voice welcome for admin
     if not st.session_state.welcome_spoken:
-        welcome_user(st.session_state.username, "admin", st.session_state.voice_engine)
+        welcome_user(st.session_state.username, "admin", st.session_state.voice_assistant)
         st.session_state.welcome_spoken = True
 
     with st.sidebar:
         st.header("⚙ Admin Actions")
         if st.button("🔊 Play Welcome Guide", key="admin_guide_btn"):
-            welcome_user(st.session_state.username, "admin", st.session_state.voice_engine)
+            welcome_user(st.session_state.username, "admin", st.session_state.voice_assistant)
         
         if st.button("🚪 Logout", key="admin_logout_btn"):
             logout()
             st.rerun()
 
-    # Updated tabs for admin with separate appointment management tab
-    tabs = st.tabs(
-        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "🩺 Appointment Requests"]
-    )
+    tabs = st.tabs(["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "🩺 Appointment Requests"])
 
     with tabs[0]:
         st.subheader("Create a new user")
@@ -534,9 +518,7 @@ def render_admin_dashboard():
                 cols[0].write(f"{uname}")
                 cols[1].write(meta["role"])
                 with cols[2]:
-                    new_pw = st.text_input(
-                        f"New Password for {uname}", key=f"pw_{uname}", type="password"
-                    )
+                    new_pw = st.text_input(f"New Password for {uname}", key=f"pw_{uname}", type="password")
                     if st.button(f"Reset Password: {uname}", key=f"btn_reset_{uname}"):
                         ok, msg = reset_password(uname, new_pw)
                         (st.success if ok else st.error)(msg)
@@ -549,13 +531,7 @@ def render_admin_dashboard():
 
     with tabs[2]:
         st.subheader("Export / Import Users")
-        st.download_button(
-            "📥 Download users.json",
-            data=export_users_json(),
-            file_name="users.json",
-            mime="application/json",
-            key="download_users_btn",
-        )
+        st.download_button("📥 Download users.json", data=export_users_json(), file_name="users.json", mime="application/json", key="download_users_btn")
         up = st.file_uploader("Import users.json", type=["json"], key="import_users_uploader")
         if up is not None:
             ok, msg = import_users_json(up.read())
@@ -563,18 +539,13 @@ def render_admin_dashboard():
 
     with tabs[3]:
         st.subheader("Telegram Settings")
-        bot_token = st.text_input(
-            "BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token"
-        )
-        chat_id = st.text_input(
-            "CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="chat_id"
-        )
+        bot_token = st.text_input("BOT_TOKEN", value=st.session_state.settings.get("BOT_TOKEN", ""), key="bot_token")
+        chat_id = st.text_input("CHAT_ID", value=st.session_state.settings.get("CHAT_ID", ""), key="chat_id")
         if st.button("Save Telegram Settings", key="save_telegram_btn"):
             st.session_state.settings["BOT_TOKEN"] = bot_token
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # Doctor Appointment Management in separate tab
     with tabs[4]:
         render_admin_appointments()
 
@@ -582,9 +553,7 @@ def render_admin_dashboard():
     st.subheader("📝 Recently Sent Reports")
     if st.session_state.report_log:
         for i, r in enumerate(st.session_state.report_log[::-1][:10], 1):
-            st.write(
-                f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}"
-            )
+            st.write(f"{i}. {r.get('patient_name','')} | Stroke: {r.get('stroke_percent',''):.2f}% | No Stroke: {r.get('no_stroke_percent',''):.2f}% | By: {r.get('by','')}")
     else:
         st.caption("No reports yet.")
 
@@ -594,47 +563,41 @@ def render_admin_dashboard():
 def render_user_app():
     # Voice welcome for user
     if not st.session_state.welcome_spoken:
-        welcome_user(st.session_state.username, "user", st.session_state.voice_engine)
+        welcome_user(st.session_state.username, "user", st.session_state.voice_assistant)
         st.session_state.welcome_spoken = True
 
-    # Use tabs for user interface
     tabs = st.tabs(["🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
     
-    # Sidebar with voice controls
     with st.sidebar:
         st.header("👤 Account")
         st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
         
         st.header("🎤 Voice Assistant")
         if st.button("🔊 Play Welcome Guide", key="user_welcome_btn"):
-            welcome_user(st.session_state.username, "user", st.session_state.voice_engine)
+            welcome_user(st.session_state.username, "user", st.session_state.voice_assistant)
         
         if st.button("📋 Current Tab Guide", key="tab_guide_btn"):
-            current_tab = "Stroke Detection"  # Default
+            current_tab = "Stroke Detection"
             if "current_tab" in st.session_state:
                 current_tab = st.session_state.current_tab
-            provide_guidance(current_tab, st.session_state.voice_engine)
+            provide_guidance(current_tab, st.session_state.voice_assistant)
         
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
             st.rerun()
     
-    # Tab 1: Stroke Detection
     with tabs[0]:
         st.session_state.current_tab = "Stroke Detection"
         render_stroke_detection()
     
-    # Tab 2: Vital Signs
     with tabs[1]:
         st.session_state.current_tab = "Vital Signs"
         render_vital_signs()
     
-    # Tab 3: Book Appointment
     with tabs[2]:
         st.session_state.current_tab = "Book Appointment"
         render_appointment_portal()
     
-    # Tab 4: Post-Stroke Care
     with tabs[3]:
         st.session_state.current_tab = "Post-Stroke Care"
         render_post_stroke_care()
@@ -646,9 +609,8 @@ def render_stroke_detection():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
     st.write("Upload a brain scan image to check stroke probability and view affected regions.")
 
-    # Voice guidance button for this tab
     if st.button("🔊 Get Voice Guidance for Stroke Detection", key="stroke_voice_guide"):
-        provide_guidance("Stroke Detection", st.session_state.voice_engine)
+        provide_guidance("Stroke Detection", st.session_state.voice_assistant)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -715,7 +677,6 @@ def render_stroke_detection():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        # Display Model Evaluation Metrics
         display_model_metrics()
 
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
@@ -738,14 +699,12 @@ def render_stroke_detection():
                 response = requests.post(url, data={"chat_id": CHAT_ID, "text": message})
                 if response.status_code == 200:
                     st.success("✅ Patient report sent to Telegram successfully!")
-                    st.session_state.report_log.append(
-                        {
-                            "patient_name": patient_name,
-                            "stroke_percent": stroke_percent,
-                            "no_stroke_percent": no_stroke_percent,
-                            "by": st.session_state.username or "unknown",
-                        }
-                    )
+                    st.session_state.report_log.append({
+                        "patient_name": patient_name,
+                        "stroke_percent": stroke_percent,
+                        "no_stroke_percent": no_stroke_percent,
+                        "by": st.session_state.username or "unknown",
+                    })
                 else:
                     st.error("❌ Failed to send report to Telegram.")
             except Exception as e:
@@ -758,49 +717,26 @@ def render_vital_signs():
     st.title("📊 Adult Vital Signs Monitoring")
     st.write("Enter your vital signs data to monitor your health status.")
     
-    # Voice guidance button for this tab
     if st.button("🔊 Get Voice Guidance for Vital Signs", key="vital_voice_guide"):
-        provide_guidance("Vital Signs", st.session_state.voice_engine)
+        provide_guidance("Vital Signs", st.session_state.voice_assistant)
     
-    # Display normal ranges reference
     st.subheader("📋 Normal Vital Signs Ranges")
-    
-    # Create a table for normal ranges
     normal_ranges = {
-        "Vital Sign": [
-            "Heart Rate (Pulse)",
-            "Temperature", 
-            "Respiratory Rate",
-            "Blood Pressure (Systolic)",
-            "Blood Pressure (Diastolic)", 
-            "SpO2 (Oxygen Saturation)"
-        ],
-        "Normal Range": [
-            "60 - 100 beats per minute",
-            "97 - 99°F (36.1-37.2°C)",
-            "12 - 20 breaths per minute", 
-            "90 - 120 mmHg",
-            "60 - 80 mmHg",
-            "95 - 100%"
-        ]
+        "Vital Sign": ["Heart Rate (Pulse)", "Temperature", "Respiratory Rate", "Blood Pressure (Systolic)", "Blood Pressure (Diastolic)", "SpO2 (Oxygen Saturation)"],
+        "Normal Range": ["60 - 100 beats per minute", "97 - 99°F (36.1-37.2°C)", "12 - 20 breaths per minute", "90 - 120 mmHg", "60 - 80 mmHg", "95 - 100%"]
     }
-    
     st.table(normal_ranges)
     
     st.write("---")
-    
-    # Vital Signs Input Form
     st.subheader("🩺 Enter Your Vital Signs")
     
     with st.form(key="vital_signs_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
-        
         with col1:
             patient_name = st.text_input("Patient Name", value="John Doe", key="vital_patient_name")
             heart_rate = st.number_input("Heart Rate (bpm)", min_value=0, max_value=200, value=72, key="heart_rate")
             temperature = st.number_input("Temperature (°F)", min_value=90.0, max_value=110.0, value=98.6, step=0.1, key="temperature")
             respiratory_rate = st.number_input("Respiratory Rate (breaths/min)", min_value=0, max_value=60, value=16, key="respiratory_rate")
-            
         with col2:
             systolic_bp = st.number_input("Systolic BP (mmHg)", min_value=0, max_value=300, value=120, key="systolic_bp")
             diastolic_bp = st.number_input("Diastolic BP (mmHg)", min_value=0, max_value=200, value=80, key="diastolic_bp")
@@ -813,53 +749,29 @@ def render_vital_signs():
             if not patient_name:
                 st.error("Please enter patient name.")
             else:
-                # Check for abnormal values and provide warnings
                 warnings = []
+                if heart_rate < 60 or heart_rate > 100: warnings.append(f"⚠ Heart rate ({heart_rate} bpm) is outside normal range (60-100 bpm)")
+                if temperature < 97 or temperature > 99: warnings.append(f"⚠ Temperature ({temperature}°F) is outside normal range (97-99°F)")
+                if respiratory_rate < 12 or respiratory_rate > 20: warnings.append(f"⚠ Respiratory rate ({respiratory_rate} breaths/min) is outside normal range (12-20 breaths/min)")
+                if systolic_bp < 90 or systolic_bp > 120: warnings.append(f"⚠ Systolic BP ({systolic_bp} mmHg) is outside normal range (90-120 mmHg)")
+                if diastolic_bp < 60 or diastolic_bp > 80: warnings.append(f"⚠ Diastolic BP ({diastolic_bp} mmHg) is outside normal range (60-80 mmHg)")
+                if oxygen_saturation < 95: warnings.append(f"🚨 Oxygen saturation ({oxygen_saturation}%) is below normal range (95-100%) - Seek medical attention!")
                 
-                if heart_rate < 60 or heart_rate > 100:
-                    warnings.append(f"⚠ Heart rate ({heart_rate} bpm) is outside normal range (60-100 bpm)")
-                
-                if temperature < 97 or temperature > 99:
-                    warnings.append(f"⚠ Temperature ({temperature}°F) is outside normal range (97-99°F)")
-                
-                if respiratory_rate < 12 or respiratory_rate > 20:
-                    warnings.append(f"⚠ Respiratory rate ({respiratory_rate} breaths/min) is outside normal range (12-20 breaths/min)")
-                
-                if systolic_bp < 90 or systolic_bp > 120:
-                    warnings.append(f"⚠ Systolic BP ({systolic_bp} mmHg) is outside normal range (90-120 mmHg)")
-                
-                if diastolic_bp < 60 or diastolic_bp > 80:
-                    warnings.append(f"⚠ Diastolic BP ({diastolic_bp} mmHg) is outside normal range (60-80 mmHg)")
-                
-                if oxygen_saturation < 95:
-                    warnings.append(f"🚨 Oxygen saturation ({oxygen_saturation}%) is below normal range (95-100%) - Seek medical attention!")
-                
-                # Save vital signs data
                 vital_data = {
-                    "patient_name": patient_name,
-                    "heart_rate": heart_rate,
-                    "temperature": temperature,
-                    "respiratory_rate": respiratory_rate,
-                    "systolic_bp": systolic_bp,
-                    "diastolic_bp": diastolic_bp,
-                    "oxygen_saturation": oxygen_saturation,
-                    "notes": notes,
-                    "timestamp": str(pd.Timestamp.now()),
+                    "patient_name": patient_name, "heart_rate": heart_rate, "temperature": temperature,
+                    "respiratory_rate": respiratory_rate, "systolic_bp": systolic_bp, "diastolic_bp": diastolic_bp,
+                    "oxygen_saturation": oxygen_saturation, "notes": notes, "timestamp": str(pd.Timestamp.now()),
                     "recorded_by": st.session_state.username or "unknown"
                 }
                 
                 st.session_state.vital_signs.append(vital_data)
                 save_vital_signs_to_file()
-                
                 st.success("✅ Vital signs saved successfully!")
                 
-                # Display warnings if any
                 if warnings:
                     st.warning("*Health Alerts:*")
-                    for warning in warnings:
-                        st.write(warning)
+                    for warning in warnings: st.write(warning)
                 
-                # Show summary
                 st.subheader("📈 Current Reading Summary")
                 summary_cols = st.columns(3)
                 with summary_cols[0]:
@@ -871,21 +783,13 @@ def render_vital_signs():
                 with summary_cols[2]:
                     st.metric("Blood Pressure", f"{systolic_bp}/{diastolic_bp}")
     
-    # Display previous vital signs records
     st.write("---")
     st.subheader("📋 Previous Vital Signs Records")
-    
-    user_vitals = [
-        v for v in st.session_state.vital_signs 
-        if v.get("recorded_by") == st.session_state.username
-    ]
-    
+    user_vitals = [v for v in st.session_state.vital_signs if v.get("recorded_by") == st.session_state.username]
     if not user_vitals:
         st.info("No vital signs records yet.")
     else:
-        # Show latest 5 records
         recent_vitals = user_vitals[::-1][:5]
-        
         for i, vital in enumerate(recent_vitals):
             with st.expander(f"Record {i+1} - {vital['timestamp'][:16]}"):
                 col1, col2 = st.columns(2)
@@ -897,8 +801,7 @@ def render_vital_signs():
                 with col2:
                     st.write(f"*Blood Pressure:* {vital['systolic_bp']}/{vital['diastolic_bp']} mmHg")
                     st.write(f"*Oxygen Saturation:* {vital['oxygen_saturation']}%")
-                    if vital.get('notes'):
-                        st.write(f"*Notes:* {vital['notes']}")
+                    if vital.get('notes'): st.write(f"*Notes:* {vital['notes']}")
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
@@ -907,26 +810,18 @@ def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
-    # Voice guidance button for this tab
     if st.button("🔊 Get Voice Guidance for Appointments", key="appt_voice_guide"):
-        provide_guidance("Book Appointment", st.session_state.voice_engine)
+        provide_guidance("Book Appointment", st.session_state.voice_assistant)
 
-    # Show current appointment status for this user
     st.write("### 📅 Your Appointment Requests")
-    user_appts = [
-        a for a in st.session_state.appointments if a.get("requested_by") == st.session_state.username
-    ]
+    user_appts = [a for a in st.session_state.appointments if a.get("requested_by") == st.session_state.username]
     if not user_appts:
         st.info("No appointment requests yet.")
     else:
         for a in user_appts[::-1]:
             status = a.get("status", "Pending")
-            color = "🔴 Rejected" if status == "Rejected" else (
-                "🟢 Approved" if status == "Approved" else "🟡 Pending"
-            )
-            st.write(
-                f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → {color}"
-            )
+            color = "🔴 Rejected" if status == "Rejected" else ("🟢 Approved" if status == "Approved" else "🟡 Pending")
+            st.write(f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → {color}")
     
     st.write("---")
     st.subheader("📝 Book New Appointment")
@@ -940,16 +835,10 @@ def render_appointment_portal():
         with col2:
             appt_date = st.date_input("Appointment Date", key="appt_date")
             appt_time = st.time_input("Preferred Time", key="appt_time")
-            doctor = st.selectbox(
-                "Select Doctor",
-                [
-                    "Dr. Ramesh (Neurologist, Apollo)",
-                    "Dr. Priya (Radiologist, Fortis)",
-                    "Dr. Kumar (Stroke Specialist, MIOT)",
-                    "Dr. Divya (CT Analysis Expert, Kauvery)",
-                ],
-                key="appt_doctor",
-            )
+            doctor = st.selectbox("Select Doctor", [
+                "Dr. Ramesh (Neurologist, Apollo)", "Dr. Priya (Radiologist, Fortis)", 
+                "Dr. Kumar (Stroke Specialist, MIOT)", "Dr. Divya (CT Analysis Expert, Kauvery)"
+            ], key="appt_doctor")
         submit = st.form_submit_button("📩 Send Appointment Request")
 
         if submit:
@@ -957,14 +846,9 @@ def render_appointment_portal():
                 st.error("Please fill in all required fields.")
             else:
                 appt = {
-                    "patient_name": appt_patient_name,
-                    "mobile": appt_mobile,
-                    "age": appt_age,
-                    "date": str(appt_date),
-                    "time": str(appt_time),
-                    "doctor": doctor,
-                    "status": "Pending",
-                    "requested_by": st.session_state.username or "unknown",
+                    "patient_name": appt_patient_name, "mobile": appt_mobile, "age": appt_age,
+                    "date": str(appt_date), "time": str(appt_time), "doctor": doctor,
+                    "status": "Pending", "requested_by": st.session_state.username or "unknown"
                 }
                 st.session_state.appointments.append(appt)
                 save_appointments_to_file()
@@ -972,7 +856,7 @@ def render_appointment_portal():
                 st.rerun()
 
 # -------------------------
-# Admin: Manage Doctor Appointments (color-coded buttons)
+# Admin: Manage Doctor Appointments
 # -------------------------
 def render_admin_appointments():
     st.subheader("🩺 Doctor Appointment Requests")
@@ -988,14 +872,10 @@ def render_admin_appointments():
             st.write(f"🗓 {appt['date']} at {appt['time']}")
             st.write(f"🧑‍💻 Requested by: {appt.get('requested_by', 'unknown')}")
             
-            # Status with color coding
             status = appt.get('status', 'Pending')
-            if status == 'Approved':
-                st.success(f"📋 Status: {status}")
-            elif status == 'Rejected':
-                st.error(f"📋 Status: {status}")
-            else:
-                st.warning(f"📋 Status: {status}")
+            if status == 'Approved': st.success(f"📋 Status: {status}")
+            elif status == 'Rejected': st.error(f"📋 Status: {status}")
+            else: st.warning(f"📋 Status: {status}")
             
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
@@ -1023,148 +903,40 @@ def render_admin_appointments():
 # -------------------------
 def render_post_stroke_care():
     st.title("🌿 Post-Stroke Care & Lifestyle Recommendations")
-    st.write(
-        "After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. "
-        "Here are your daily care recommendations:"
-    )
+    st.write("After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. Here are your daily care recommendations:")
 
-    # Voice guidance button for this tab
     if st.button("🔊 Get Voice Guidance for Post-Stroke Care", key="care_voice_guide"):
-        provide_guidance("Post-Stroke Care", st.session_state.voice_engine)
+        provide_guidance("Post-Stroke Care", st.session_state.voice_assistant)
 
-    # Custom CSS for the box styling
     st.markdown("""
     <style>
-    .recommendation-box {
-        border: 2px solid #4CAF50;
-        border-radius: 10px;
-        padding: 15px;
-        margin: 10px 0;
-        background-color: #f9f9f9;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .recommendation-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-    .recommendation-title {
-        font-weight: bold;
-        color: #2E7D32;
-        font-size: 18px;
-    }
-    .recommendation-time {
-        color: #666;
-        font-size: 14px;
-        background-color: #E8F5E8;
-        padding: 4px 8px;
-        border-radius: 15px;
-    }
-    .recommendation-content {
-        color: #333;
-        line-height: 1.6;
-    }
+    .recommendation-box { border: 2px solid #4CAF50; border-radius: 10px; padding: 15px; margin: 10px 0; background-color: #f9f9f9; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .recommendation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .recommendation-title { font-weight: bold; color: #2E7D32; font-size: 18px; }
+    .recommendation-time { color: #666; font-size: 14px; background-color: #E8F5E8; padding: 4px 8px; border-radius: 15px; }
+    .recommendation-content { color: #333; line-height: 1.6; }
     </style>
     """, unsafe_allow_html=True)
 
-    # Nutrition & Foods
-    st.markdown("""
-    <div class="recommendation-box">
-        <div class="recommendation-header">
-            <div class="recommendation-title">🥗 Fruits & Vegetables</div>
-            <div class="recommendation-time">10:48am</div>
-        </div>
-        <div class="recommendation-content">
-            • Fresh fruits (berries, oranges, apples)<br>
-            • Leafy greens and colorful vegetables<br>
-            • Limit salt and processed foods<br>
-            • Drink plenty of water
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    recommendations = [
+        ("🥗 Fruits & Vegetables", "10:48am", "• Fresh fruits (berries, oranges, apples)<br>• Leafy greens and colorful vegetables<br>• Limit salt and processed foods<br>• Drink plenty of water"),
+        ("💪 Physical Exercise", "02:30pm", "• Gentle yoga and stretching<br>• Short walks daily<br>• Balance exercises<br>• Breathing exercises"),
+        ("🧠 Mental Wellness", "04:15pm", "• Meditation and mindfulness<br>• Cognitive exercises<br>• Social interaction<br>• Stress management"),
+        ("💊 Medication Schedule", "08:00am & 08:00pm", "• Take prescribed medications on time<br>• Regular blood pressure monitoring<br>• Weekly doctor consultations<br>• Follow rehabilitation program"),
+        ("😴 Sleep & Rest", "10:00pm", "• 7-8 hours of quality sleep<br>• Regular sleep schedule<br>• Relaxation techniques<br>• Avoid caffeine before bed"),
+        ("📋 Daily Checklist", "All Day", "• Monitor blood pressure twice daily<br>• Take medications as prescribed<br>• 30 minutes of light exercise<br>• Healthy meals with fruits/vegetables<br>• Stay hydrated (8 glasses water)<br>• Practice relaxation techniques")
+    ]
 
-    # Physical Exercise
-    st.markdown("""
-    <div class="recommendation-box">
-        <div class="recommendation-header">
-            <div class="recommendation-title">💪 Physical Exercise</div>
-            <div class="recommendation-time">02:30pm</div>
+    for title, time, content in recommendations:
+        st.markdown(f"""
+        <div class="recommendation-box">
+            <div class="recommendation-header">
+                <div class="recommendation-title">{title}</div>
+                <div class="recommendation-time">{time}</div>
+            </div>
+            <div class="recommendation-content">{content}</div>
         </div>
-        <div class="recommendation-content">
-            • Gentle yoga and stretching<br>
-            • Short walks daily<br>
-            • Balance exercises<br>
-            • Breathing exercises
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Mental Health
-    st.markdown("""
-    <div class="recommendation-box">
-        <div class="recommendation-header">
-            <div class="recommendation-title">🧠 Mental Wellness</div>
-            <div class="recommendation-time">04:15pm</div>
-        </div>
-        <div class="recommendation-content">
-            • Meditation and mindfulness<br>
-            • Cognitive exercises<br>
-            • Social interaction<br>
-            • Stress management
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Medication & Checkups
-    st.markdown("""
-    <div class="recommendation-box">
-        <div class="recommendation-header">
-            <div class="recommendation-title">💊 Medication Schedule</div>
-            <div class="recommendation-time">08:00am & 08:00pm</div>
-        </div>
-        <div class="recommendation-content">
-            • Take prescribed medications on time<br>
-            • Regular blood pressure monitoring<br>
-            • Weekly doctor consultations<br>
-            • Follow rehabilitation program
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Sleep & Rest
-    st.markdown("""
-    <div class="recommendation-box">
-        <div class="recommendation-header">
-            <div class="recommendation-title">😴 Sleep & Rest</div>
-            <div class="recommendation-time">10:00pm</div>
-        </div>
-        <div class="recommendation-content">
-            • 7-8 hours of quality sleep<br>
-            • Regular sleep schedule<br>
-            • Relaxation techniques<br>
-            • Avoid caffeine before bed
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Additional Tips
-    st.markdown("""
-    <div class="recommendation-box">
-        <div class="recommendation-header">
-            <div class="recommendation-title">📋 Daily Checklist</div>
-            <div class="recommendation-time">All Day</div>
-        </div>
-        <div class="recommendation-content">
-            • Monitor blood pressure twice daily<br>
-            • Take medications as prescribed<br>
-            • 30 minutes of light exercise<br>
-            • Healthy meals with fruits/vegetables<br>
-            • Stay hydrated (8 glasses water)<br>
-            • Practice relaxation techniques
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     st.write("---")
     st.info("💡 *Tip:* Follow these recommendations consistently for better recovery outcomes. Adjust timings based on your personal schedule and doctor's advice.")
