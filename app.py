@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
+import pyttsx3
+import threading
+import time
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -68,6 +71,94 @@ def load_vital_signs_from_file():
         except Exception:
             return []
     return []
+
+
+# -------------------------
+# Voice Assistant Functions
+# -------------------------
+def initialize_voice_engine():
+    """Initialize the text-to-speech engine"""
+    try:
+        engine = pyttsx3.init()
+        # Set voice properties
+        voices = engine.getProperty('voices')
+        if len(voices) > 1:
+            engine.setProperty('voice', voices[1].id)  # Female voice if available
+        engine.setProperty('rate', 150)  # Speed of speech
+        engine.setProperty('volume', 0.8)  # Volume level
+        return engine
+    except Exception as e:
+        st.warning(f"Voice assistant initialization failed: {e}")
+        return None
+
+
+def speak_text(text, engine):
+    """Speak text using TTS engine in a separate thread"""
+    def speak():
+        try:
+            engine.say(text)
+            engine.runAndWait()
+        except Exception as e:
+            print(f"Speech error: {e}")
+    
+    if engine is not None:
+        thread = threading.Thread(target=speak)
+        thread.daemon = True
+        thread.start()
+
+
+def welcome_user(username, role, engine):
+    """Welcome message for users"""
+    welcome_message = f"Welcome to our AI {username}! You are logged in as {role}. "
+    
+    if role == "admin":
+        welcome_message += """
+        As an administrator, you can manage users, view appointments, and monitor system activities. 
+        You have access to create new users, reset passwords, and manage all appointment requests. 
+        Use the tabs to navigate between different administrative functions.
+        """
+    else:
+        welcome_message += """
+        Welcome to Neuro Nexus AI Stroke Detection System. Here's how to use the portal:
+        Tab 1: Stroke Detection - Upload CT or MRI scans to check for stroke probability
+        Tab 2: Vital Signs - Monitor and record your health vitals like heart rate and blood pressure
+        Tab 3: Book Appointment - Schedule consultations with specialist doctors
+        Tab 4: Post-Stroke Care - Get personalized recovery recommendations and lifestyle guidance
+        Feel free to explore each section for comprehensive stroke care management.
+        """
+    
+    speak_text(welcome_message, engine)
+
+
+def provide_guidance(current_tab, engine):
+    """Provide contextual guidance based on current tab"""
+    guidance_messages = {
+        "Stroke Detection": """
+        In the Stroke Detection section, you can upload brain scan images. 
+        The AI will analyze them for stroke probability and highlight affected regions. 
+        Make sure to fill in patient details before uploading the scan.
+        """,
+        
+        "Vital Signs": """
+        In Vital Signs monitoring, enter your current health metrics. 
+        The system will alert you if any values are outside normal ranges. 
+        You can also view your previous records for trend analysis.
+        """,
+        
+        "Book Appointment": """
+        Use this section to book appointments with specialist doctors. 
+        Fill in patient details and preferred timing. 
+        You can track your appointment status in the same section.
+        """,
+        
+        "Post-Stroke Care": """
+        This section provides comprehensive recovery guidance including diet, exercise, 
+        medication schedules, and lifestyle recommendations for post-stroke care.
+        """
+    }
+    
+    if current_tab in guidance_messages:
+        speak_text(guidance_messages[current_tab], engine)
 
 
 # -------------------------
@@ -312,6 +403,10 @@ def ensure_state():
         st.session_state.appointments = load_appointments_from_file()
     if "vital_signs" not in st.session_state:
         st.session_state.vital_signs = load_vital_signs_from_file()
+    if "voice_engine" not in st.session_state:
+        st.session_state.voice_engine = initialize_voice_engine()
+    if "welcome_spoken" not in st.session_state:
+        st.session_state.welcome_spoken = False
 
 
 ensure_state()
@@ -326,6 +421,7 @@ def login(username, password):
         st.session_state.logged_in = True
         st.session_state.username = username
         st.session_state.role = users[username]["role"]
+        st.session_state.welcome_spoken = False  # Reset welcome flag on login
         return True
     return False
 
@@ -334,6 +430,7 @@ def logout():
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
+    st.session_state.welcome_spoken = False
 
 
 def add_user(new_username, new_password, role="user"):
@@ -407,8 +504,16 @@ def render_admin_dashboard():
     st.title("🛡 Admin Dashboard")
     st.write(f"Welcome, {st.session_state.username} (admin)")
 
+    # Voice welcome for admin
+    if not st.session_state.welcome_spoken:
+        welcome_user(st.session_state.username, "admin", st.session_state.voice_engine)
+        st.session_state.welcome_spoken = True
+
     with st.sidebar:
         st.header("⚙ Admin Actions")
+        if st.button("🔊 Play Welcome Guide", key="admin_guide_btn"):
+            welcome_user(st.session_state.username, "admin", st.session_state.voice_engine)
+        
         if st.button("🚪 Logout", key="admin_logout_btn"):
             logout()
             st.rerun()
@@ -495,32 +600,52 @@ def render_admin_dashboard():
 # Stroke App Main UI
 # -------------------------
 def render_user_app():
+    # Voice welcome for user
+    if not st.session_state.welcome_spoken:
+        welcome_user(st.session_state.username, "user", st.session_state.voice_engine)
+        st.session_state.welcome_spoken = True
+
     # Use tabs for user interface
     tabs = st.tabs(["🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
     
+    # Sidebar with voice controls
+    with st.sidebar:
+        st.header("👤 Account")
+        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
+        
+        st.header("🎤 Voice Assistant")
+        if st.button("🔊 Play Welcome Guide", key="user_welcome_btn"):
+            welcome_user(st.session_state.username, "user", st.session_state.voice_engine)
+        
+        if st.button("📋 Current Tab Guide", key="tab_guide_btn"):
+            current_tab = "Stroke Detection"  # Default
+            if "current_tab" in st.session_state:
+                current_tab = st.session_state.current_tab
+            provide_guidance(current_tab, st.session_state.voice_engine)
+        
+        if st.button("🚪 Logout", key="user_logout_btn"):
+            logout()
+            st.rerun()
+    
     # Tab 1: Stroke Detection
     with tabs[0]:
+        st.session_state.current_tab = "Stroke Detection"
         render_stroke_detection()
     
     # Tab 2: Vital Signs
     with tabs[1]:
+        st.session_state.current_tab = "Vital Signs"
         render_vital_signs()
     
     # Tab 3: Book Appointment
     with tabs[2]:
+        st.session_state.current_tab = "Book Appointment"
         render_appointment_portal()
     
     # Tab 4: Post-Stroke Care
     with tabs[3]:
+        st.session_state.current_tab = "Post-Stroke Care"
         render_post_stroke_care()
-    
-    # Sidebar (common for all tabs)
-    with st.sidebar:
-        st.header("👤 Account")
-        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-        if st.button("🚪 Logout", key="user_logout_btn"):
-            logout()
-            st.rerun()
 
 
 # -------------------------
@@ -529,6 +654,10 @@ def render_user_app():
 def render_stroke_detection():
     st.title("🧠 Stroke Detection from CT/MRI Scans")
     st.write("Upload a brain scan image to check stroke probability and view affected regions.")
+
+    # Voice guidance button for this tab
+    if st.button("🔊 Get Voice Guidance for Stroke Detection", key="stroke_voice_guide"):
+        provide_guidance("Stroke Detection", st.session_state.voice_engine)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -638,6 +767,10 @@ def render_stroke_detection():
 def render_vital_signs():
     st.title("📊 Adult Vital Signs Monitoring")
     st.write("Enter your vital signs data to monitor your health status.")
+    
+    # Voice guidance button for this tab
+    if st.button("🔊 Get Voice Guidance for Vital Signs", key="vital_voice_guide"):
+        provide_guidance("Vital Signs", st.session_state.voice_engine)
     
     # Display normal ranges reference
     st.subheader("📋 Normal Vital Signs Ranges")
@@ -785,6 +918,10 @@ def render_appointment_portal():
     st.title("🩺 Doctor Appointment Booking")
     st.write("Book an appointment with a neurologist or radiologist for consultation.")
 
+    # Voice guidance button for this tab
+    if st.button("🔊 Get Voice Guidance for Appointments", key="appt_voice_guide"):
+        provide_guidance("Book Appointment", st.session_state.voice_engine)
+
     # Show current appointment status for this user
     st.write("### 📅 Your Appointment Requests")
     user_appts = [
@@ -903,6 +1040,10 @@ def render_post_stroke_care():
         "After a brain stroke, recovery is not just medical treatment — lifestyle and diet play a major role. "
         "Here are your daily care recommendations:"
     )
+
+    # Voice guidance button for this tab
+    if st.button("🔊 Get Voice Guidance for Post-Stroke Care", key="care_voice_guide"):
+        provide_guidance("Post-Stroke Care", st.session_state.voice_engine)
 
     # Custom CSS for the box styling
     st.markdown("""
