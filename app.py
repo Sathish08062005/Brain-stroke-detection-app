@@ -1,3 +1,15 @@
+[file name]: 1000271758.jpg
+[file content begin]
+# confusion matrix
+
+T    T    F  
+F    PT    50   PF.20  
+FT    FF  
+-20    -10    > 100 V.
+
+
+[file content end]
+
 import streamlit as st
 import numpy as np
 import cv2
@@ -8,14 +20,16 @@ import gdown
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_score, recall_score, f1_score, accuracy_score
+from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
+import pandas as pd
 
 # -------------------------
 # Users & Appointments file for persistence
 # -------------------------
 USERS_FILE = "users.json"
 APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
+
 
 def save_users_to_file():
     try:
@@ -24,6 +38,7 @@ def save_users_to_file():
     except Exception as e:
         st.error(f"Error saving users file: {e}")
 
+
 # Appointment persistence helpers
 def save_appointments_to_file():
     try:
@@ -31,6 +46,7 @@ def save_appointments_to_file():
             json.dump(st.session_state.appointments, f, indent=2)
     except Exception as e:
         st.error(f"Error saving appointments file: {e}")
+
 
 def load_appointments_from_file():
     if os.path.exists(APPOINTMENTS_FILE):
@@ -42,6 +58,7 @@ def load_appointments_from_file():
         except Exception:
             return []
     return []
+
 
 # -------------------------
 # Page Config
@@ -69,11 +86,14 @@ if not os.path.exists(MODEL_PATH):
     with st.spinner("⬇ Downloading stroke model... please wait ⏳"):
         gdown.download(DRIVE_URL, MODEL_PATH, quiet=False)
 
+
 @st.cache_resource(show_spinner=False)
 def load_stroke_model():
     return load_model(MODEL_PATH)
 
+
 model = load_stroke_model()
+
 
 # -------------------------
 # Preprocess image for classification
@@ -85,12 +105,14 @@ def preprocess_image(image):
     image = np.expand_dims(image, axis=0)
     return image
 
+
 def classify_image(image):
     processed = preprocess_image(image)
     prediction = model.predict(processed)[0][0]
     stroke_prob = float(prediction)
     no_stroke_prob = 1 - stroke_prob
     return stroke_prob, no_stroke_prob
+
 
 def highlight_stroke_regions(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -104,221 +126,147 @@ def highlight_stroke_regions(image):
     highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
     return highlighted
 
+
 # -------------------------
-# Model Evaluation Functions for Uploaded Scan
+# Model Evaluation Metrics Functions
 # -------------------------
-def generate_realistic_evaluation(stroke_prob):
-    """Generate realistic evaluation metrics based on the uploaded scan prediction"""
+def generate_model_metrics():
+    """
+    Generate sample model evaluation metrics for demonstration.
+    In a real application, you would use your test dataset here.
+    """
+    # Sample data for demonstration - replace with actual test data
+    np.random.seed(42)
     
-    # Create realistic predictions based on the actual prediction
-    if stroke_prob > 0.7:
-        # High stroke probability - model is confident
-        y_true = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # 10 stroke, 10 no stroke
-        y_pred_proba = [0.85, 0.92, 0.78, 0.95, 0.88, 0.82, 0.91, 0.76, 0.89, 0.84, 
-                       0.15, 0.08, 0.22, 0.05, 0.12, 0.18, 0.09, 0.24, 0.11, 0.16]
-        y_pred = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        
-    elif stroke_prob > 0.5:
-        # Moderate stroke probability
-        y_true = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        y_pred_proba = [0.75, 0.82, 0.68, 0.85, 0.78, 0.72, 0.81, 0.66, 0.79, 0.74,
-                       0.25, 0.18, 0.32, 0.15, 0.22, 0.28, 0.19, 0.34, 0.21, 0.26]
-        y_pred = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        
-    else:
-        # Low stroke probability (no stroke)
-        y_true = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        y_pred_proba = [0.15, 0.08, 0.22, 0.05, 0.12, 0.18, 0.09, 0.24, 0.11, 0.16,
-                       0.85, 0.92, 0.78, 0.95, 0.88, 0.82, 0.91, 0.76, 0.89, 0.84]
-        y_pred = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    # Simulate predictions and true labels for 100 samples
+    y_true = np.random.choice([0, 1], size=100, p=[0.3, 0.7])  # 30% negative, 70% positive
+    y_pred_proba = np.random.rand(100)
+    y_pred = (y_pred_proba > 0.5).astype(int)
     
-    return y_true, y_pred, y_pred_proba
-
-def plot_confusion_matrix(y_true, y_pred):
-    """Plot confusion matrix"""
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['No Stroke', 'Stroke'],
-                yticklabels=['No Stroke', 'Stroke'],
-                cbar_kws={'label': 'Number of Samples'})
-    plt.title('Confusion Matrix - Model Performance Analysis', fontsize=14, fontweight='bold')
-    plt.ylabel('Actual Label', fontsize=12)
-    plt.xlabel('Predicted Label', fontsize=12)
-    plt.tight_layout()
-    return plt, cm
-
-def plot_roc_curve(y_true, y_pred_proba):
-    """Plot ROC curve"""
-    fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba)
-    roc_auc = auc(fpr, tpr)
-    
-    plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color='darkorange', lw=3, label=f'ROC curve (AUC = {roc_auc:.4f})')
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Random Classifier (AUC = 0.5)')
-    plt.fill_between(fpr, tpr, alpha=0.3, color='darkorange')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate', fontsize=12)
-    plt.ylabel('True Positive Rate', fontsize=12)
-    plt.title('Receiver Operating Characteristic (ROC) Curve', 
-              fontsize=14, fontweight='bold')
-    plt.legend(loc="lower right", fontsize=11)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    return plt, roc_auc
-
-def calculate_detailed_metrics(y_true, y_pred, y_pred_proba):
-    """Calculate all performance metrics"""
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred)
-    recall = recall_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred)
+    # Calculate metrics
     cm = confusion_matrix(y_true, y_pred)
     fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
-    auc_score = auc(fpr, tpr)
+    roc_auc = auc(fpr, tpr)
+    precision, recall, _ = precision_recall_curve(y_true, y_pred_proba)
+    pr_auc = auc(recall, precision)
+    
+    # Calculate additional metrics
+    tn, fp, fn, tp = cm.ravel()
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision_score = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall_score = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1_score = 2 * (precision_score * recall_score) / (precision_score + recall_score) if (precision_score + recall_score) > 0 else 0
     
     return {
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1_score': f1,
         'confusion_matrix': cm,
-        'auc_score': auc_score,
-        'tn': cm[0, 0],
-        'fp': cm[0, 1],
-        'fn': cm[1, 0],
-        'tp': cm[1, 1]
+        'fpr': fpr,
+        'tpr': tpr,
+        'roc_auc': roc_auc,
+        'precision_curve': precision,
+        'recall_curve': recall,
+        'pr_auc': pr_auc,
+        'accuracy': accuracy,
+        'precision': precision_score,
+        'recall': recall_score,
+        'f1_score': f1_score,
+        'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn
     }
 
-def render_scan_evaluation(stroke_prob, no_stroke_prob):
-    """Render evaluation metrics for the uploaded scan"""
-    st.markdown("---")
-    st.subheader("📊 Model Performance Analysis for This Scan")
+
+def plot_confusion_matrix(cm):
+    """Plot confusion matrix"""
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
+                xticklabels=['No Stroke', 'Stroke'],
+                yticklabels=['No Stroke', 'Stroke'])
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('Actual')
+    ax.set_title('Confusion Matrix')
+    return fig
+
+
+def plot_roc_curve(fpr, tpr, roc_auc):
+    """Plot ROC curve"""
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
+    ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel('False Positive Rate')
+    ax.set_ylabel('True Positive Rate')
+    ax.set_title('Receiver Operating Characteristic (ROC) Curve')
+    ax.legend(loc="lower right")
+    return fig
+
+
+def plot_precision_recall_curve(precision, recall, pr_auc):
+    """Plot Precision-Recall curve"""
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(recall, precision, color='blue', lw=2, label=f'PR curve (AUC = {pr_auc:.2f})')
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.05])
+    ax.set_xlabel('Recall')
+    ax.set_ylabel('Precision')
+    ax.set_title('Precision-Recall Curve')
+    ax.legend(loc="upper right")
+    return fig
+
+
+def display_model_metrics():
+    """Display all model evaluation metrics"""
+    st.subheader("📊 Model Evaluation Metrics")
     
-    # Generate realistic evaluation data based on the prediction
-    y_true, y_pred, y_pred_proba = generate_realistic_evaluation(stroke_prob)
+    # Generate metrics
+    metrics = generate_model_metrics()
     
-    # Calculate all metrics
-    metrics = calculate_detailed_metrics(y_true, y_pred, y_pred_proba)
+    # Display key metrics in columns
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Accuracy", f"{metrics['accuracy']:.2%}")
+    with col2:
+        st.metric("Precision", f"{metrics['precision']:.2%}")
+    with col3:
+        st.metric("Recall", f"{metrics['recall']:.2%}")
+    with col4:
+        st.metric("F1-Score", f"{metrics['f1_score']:.2%}")
     
-    # Create tabs for different visualizations
-    tab1, tab2, tab3 = st.tabs(["🎯 Performance Metrics", "📊 Confusion Matrix", "📈 ROC Curve"])
+    # Display confusion matrix details
+    st.write("*Confusion Matrix Details:*")
+    cm_col1, cm_col2, cm_col3, cm_col4 = st.columns(4)
+    with cm_col1:
+        st.metric("True Positives", metrics['tp'])
+    with cm_col2:
+        st.metric("True Negatives", metrics['tn'])
+    with cm_col3:
+        st.metric("False Positives", metrics['fp'])
+    with cm_col4:
+        st.metric("False Negatives", metrics['fn'])
     
-    with tab1:
-        st.success(f"## 📊 Overall Model Performance")
-        
-        # Main metrics in columns
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Accuracy", f"{metrics['accuracy']*100:.2f}%", "Overall correctness")
-        with col2:
-            st.metric("Precision", f"{metrics['precision']:.4f}", "Stroke detection accuracy")
-        with col3:
-            st.metric("Recall", f"{metrics['recall']:.4f}", "Stroke detection sensitivity")
-        with col4:
-            st.metric("F1-Score", f"{metrics['f1_score']:.4f}", "Balance measure")
-        
-        # Confusion matrix values
-        st.markdown("### 🔍 Confusion Matrix Values")
-        cm_col1, cm_col2, cm_col3, cm_col4 = st.columns(4)
-        
-        with cm_col1:
-            st.info(f"*True Negative:* {metrics['tn']}")
-            st.caption("Correctly identified no stroke")
-        with cm_col2:
-            st.warning(f"*False Positive:* {metrics['fp']}")
-            st.caption("No stroke misclassified as stroke")
-        with cm_col3:
-            st.warning(f"*False Negative:* {metrics['fn']}")
-            st.caption("Stroke misclassified as no stroke")
-        with cm_col4:
-            st.success(f"*True Positive:* {metrics['tp']}")
-            st.caption("Correctly identified stroke")
-        
-        # Detailed metrics
-        st.markdown("### 📈 Detailed Classification Report")
-        
-        report_col1, report_col2 = st.columns(2)
-        
-        with report_col1:
-            st.markdown("""
-            | Metric | Value | Description |
-            |--------|-------|-------------|
-            | *Accuracy* | {:.4f} | Overall correctness |
-            | *Precision* | {:.4f} | Stroke prediction accuracy |
-            | *Recall* | {:.4f} | Stroke detection rate |
-            | *F1-Score* | {:.4f} | Harmonic mean |
-            | *AUC Score* | {:.4f} | Overall performance |
-            """.format(metrics['accuracy'], metrics['precision'], metrics['recall'], 
-                      metrics['f1_score'], metrics['auc_score']))
-        
-        with report_col2:
-            st.markdown("""
-            ### 🎯 Model Interpretation
-            
-            - *High Accuracy*: Model performs well overall
-            - *Good Precision*: Reliable stroke predictions  
-            - *Strong Recall*: Captures most stroke cases
-            - *Excellent AUC*: Great discriminative power
-            - *Clinical Grade*: Suitable for medical use
-            """)
+    # Plot metrics
+    col1, col2 = st.columns(2)
+    with col1:
+        st.pyplot(plot_confusion_matrix(metrics['confusion_matrix']))
+    with col2:
+        st.pyplot(plot_roc_curve(metrics['fpr'], metrics['tpr'], metrics['roc_auc']))
     
-    with tab2:
-        st.subheader("Confusion Matrix - Real Performance")
-        fig_cm, cm = plot_confusion_matrix(y_true, y_pred)
-        st.pyplot(fig_cm)
-        
-        st.markdown("""
-        *Confusion Matrix Interpretation:*
-        - *True Negative ({})*: Correctly identified no stroke cases
-        - *False Positive ({})*: No stroke cases incorrectly predicted as stroke  
-        - *False Negative ({})*: Stroke cases incorrectly predicted as no stroke
-        - *True Positive ({})*: Correctly identified stroke cases
-        """.format(metrics['tn'], metrics['fp'], metrics['fn'], metrics['tp']))
-        
-        st.info("💡 *Clinical Insight*: The model shows strong performance with minimal misclassifications, making it reliable for clinical decision support.")
+    # Precision-Recall curve
+    st.pyplot(plot_precision_recall_curve(metrics['precision_curve'], metrics['recall_curve'], metrics['pr_auc']))
     
-    with tab3:
-        st.subheader("ROC Curve - Discriminative Power")
-        fig_roc, auc_score = plot_roc_curve(y_true, y_pred_proba)
-        st.pyplot(fig_roc)
-        
-        st.markdown("""
-        *ROC Curve Analysis:*
-        - *AUC Score: {:.4f}* (Excellent: >0.9, Good: >0.8, Fair: >0.7)
-        - The curve shows strong separation between classes
-        - Model has excellent true positive rate with low false positives
-        - Suitable for clinical diagnostic applications
-        """.format(metrics['auc_score']))
-    
-    # Performance summary
-    st.markdown("---")
-    st.subheader("🔬 Clinical Performance Summary")
-    
-    summary_col1, summary_col2 = st.columns(2)
-    
-    with summary_col1:
-        st.success("✅ Strengths:")
-        st.markdown("""
-        - High diagnostic accuracy
-        - Reliable stroke detection
-        - Low false positive rate
-        - Consistent performance
-        - Clinical reliability
-        """)
-    
-    with summary_col2:
-        st.info("📊 Performance Metrics:")
-        st.markdown("""
-        - Accuracy: {:.2f}%
-        - Precision: {:.4f}
-        - Recall: {:.4f}  
-        - F1-Score: {:.4f}
-        - AUC: {:.4f}
-        """.format(metrics['accuracy']*100, metrics['precision'], 
-                  metrics['recall'], metrics['f1_score'], metrics['auc_score']))
+    # Model performance summary
+    st.subheader("📈 Performance Summary")
+    performance_data = {
+        'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC AUC', 'PR AUC'],
+        'Value': [
+            f"{metrics['accuracy']:.2%}",
+            f"{metrics['precision']:.2%}",
+            f"{metrics['recall']:.2%}",
+            f"{metrics['f1_score']:.2%}",
+            f"{metrics['roc_auc']:.2%}",
+            f"{metrics['pr_auc']:.2%}"
+        ]
+    }
+    st.table(pd.DataFrame(performance_data))
+
 
 # -------------------------
 # Auth state
@@ -353,7 +301,9 @@ def ensure_state():
     if "appointments" not in st.session_state:
         st.session_state.appointments = load_appointments_from_file()
 
+
 ensure_state()
+
 
 # -------------------------
 # Auth functions
@@ -367,10 +317,12 @@ def login(username, password):
         return True
     return False
 
+
 def logout():
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
+
 
 def add_user(new_username, new_password, role="user"):
     if not new_username or not new_password:
@@ -381,6 +333,7 @@ def add_user(new_username, new_password, role="user"):
     save_users_to_file()
     return True, f"User '{new_username}' created."
 
+
 def delete_user(username):
     if username == "Sathish":
         return False, "Cannot delete the default admin."
@@ -390,6 +343,7 @@ def delete_user(username):
     save_users_to_file()
     return True, f"User '{username}' deleted."
 
+
 def reset_password(username, new_password):
     if username not in st.session_state.users:
         return False, "User not found."
@@ -397,8 +351,10 @@ def reset_password(username, new_password):
     save_users_to_file()
     return True, f"Password reset for '{username}'."
 
+
 def export_users_json():
     return json.dumps(st.session_state.users, indent=2)
+
 
 def import_users_json(file_bytes):
     try:
@@ -411,6 +367,7 @@ def import_users_json(file_bytes):
         return True, "Users imported."
     except Exception as e:
         return False, f"Import failed: {e}"
+
 
 # -------------------------
 # UI: Login
@@ -429,6 +386,7 @@ def render_login():
                 st.error("❌ Invalid Username or Password")
     with colB:
         st.caption("No registration here. Users must be created by the admin.")
+
 
 # -------------------------
 # Admin Dashboard
@@ -519,6 +477,7 @@ def render_admin_dashboard():
     else:
         st.caption("No reports yet.")
 
+
 # -------------------------
 # Stroke App Main UI
 # -------------------------
@@ -591,8 +550,8 @@ def render_user_app():
             marked_image = highlight_stroke_regions(image)
             st.image(marked_image, caption="🩸 Stroke Regions Highlighted", use_column_width=True)
 
-        # Show model evaluation for the uploaded scan
-        render_scan_evaluation(stroke_prob, no_stroke_prob)
+        # Display Model Evaluation Metrics
+        display_model_metrics()
 
         if st.button("💾 Save & Send to Telegram", key="send_telegram_btn"):
             BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
@@ -664,6 +623,7 @@ def render_user_app():
     # -------------------------
     render_post_stroke_care()
 
+
 # -------------------------
 # Doctor Appointment Portal (User Side)
 # -------------------------
@@ -713,6 +673,7 @@ def render_appointment_portal():
             st.session_state.show_appt_form = False
             st.rerun()
 
+
 # -------------------------
 # Admin: Manage Doctor Appointments (color-coded buttons)
 # -------------------------
@@ -750,6 +711,7 @@ def render_admin_appointments():
                     st.info(f"Deleted appointment for {removed['patient_name']}")
                     st.rerun()
             st.write("---")
+
 
 # -------------------------
 # Post-Stroke Care Recommendations Function
@@ -796,6 +758,7 @@ def render_post_stroke_care():
         - Stay *mentally active*: puzzles, reading, cognitive exercises.  
         - *Small, consistent steps*: recovery is gradual; consistency matters.
         """)
+
 
 # -------------------------
 # Main Routing
