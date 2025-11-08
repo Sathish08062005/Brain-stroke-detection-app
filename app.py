@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import numpy as np
 import cv2
@@ -220,7 +221,7 @@ def display_model_metrics():
         st.metric("F1-Score", f"{metrics['f1_score']:.2%}")
     
     # Display confusion matrix details
-    st.write("*Confusion Matrix Details:*")
+    st.write("Confusion Matrix Details:")
     cm_col1, cm_col2, cm_col3, cm_col4 = st.columns(4)
     with cm_col1:
         st.metric("True Positives", metrics['tp'])
@@ -594,7 +595,7 @@ def render_user_app():
                 "🟢 Approved" if status == "Approved" else "🟡 Pending"
             )
             st.write(
-                f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → *{color}*"
+                f"👤 {a['patient_name']} | 🩺 {a['doctor']} | 🗓 {a['date']} at {a['time']} → {color}"
             )
 
     with st.sidebar:
@@ -714,38 +715,38 @@ def render_post_stroke_care():
 
     with st.expander("🥗 Nutrition & Foods"):
         st.markdown("""
-        - *Fruits & Vegetables:* Fresh fruits (berries, oranges, apples) and leafy greens.  
-        - *Whole Grains:* Brown rice, oats, whole wheat bread.  
-        - *Proteins:* Fish rich in Omega-3 (salmon, sardines), eggs, legumes.  
-        - *Nuts & Seeds:* Almonds, walnuts, flaxseeds — in moderation.  
-        - *Limit:* Salt, fried foods, processed foods, and sugary snacks.  
-        - *Hydration:* Drink plenty of water and natural juices (avoid added sugar).
+        - Fruits & Vegetables: Fresh fruits (berries, oranges, apples) and leafy greens.  
+        - Whole Grains: Brown rice, oats, whole wheat bread.  
+        - Proteins: Fish rich in Omega-3 (salmon, sardines), eggs, legumes.  
+        - Nuts & Seeds: Almonds, walnuts, flaxseeds — in moderation.  
+        - Limit: Salt, fried foods, processed foods, and sugary snacks.  
+        - Hydration: Drink plenty of water and natural juices (avoid added sugar).
         """)
 
     with st.expander("🧘 Physical & Mental Exercises"):
         st.markdown("""
-        - *Yoga & Stretching:* Gentle yoga and flexibility exercises to improve mobility.  
-        - *Walking & Aerobics:* Short walks, light aerobic exercises as tolerated.  
-        - *Balance & Coordination Exercises:* Helps prevent falls.  
-        - *Breathing Exercises / Pranayama:* Enhances oxygenation and reduces stress.  
-        - *Meditation & Mindfulness:* Supports mental health, reduces anxiety and depression.
+        - Yoga & Stretching: Gentle yoga and flexibility exercises to improve mobility.  
+        - Walking & Aerobics: Short walks, light aerobic exercises as tolerated.  
+        - Balance & Coordination Exercises: Helps prevent falls.  
+        - Breathing Exercises / Pranayama: Enhances oxygenation and reduces stress.  
+        - Meditation & Mindfulness: Supports mental health, reduces anxiety and depression.
         """)
 
     with st.expander("💊 Lifestyle & Habits"):
         st.markdown("""
-        - *Sleep:* Maintain regular sleep cycles (7–8 hours).  
-        - *Stress Management:* Meditation, counseling, music therapy.  
-        - *Regular Check-ups:* Monitor blood pressure, cholesterol, and blood sugar.  
-        - *Avoid Smoking & Alcohol:* Critical for stroke prevention and recovery.  
-        - *Follow Doctor's Advice:* Stick to prescribed medications and rehabilitation programs.
+        - Sleep: Maintain regular sleep cycles (7–8 hours).  
+        - Stress Management: Meditation, counseling, music therapy.  
+        - Regular Check-ups: Monitor blood pressure, cholesterol, and blood sugar.  
+        - Avoid Smoking & Alcohol: Critical for stroke prevention and recovery.  
+        - Follow Doctor's Advice: Stick to prescribed medications and rehabilitation programs.
         """)
 
     with st.expander("📚 Additional Tips"):
         st.markdown("""
-        - Keep a *recovery journal* for diet, exercise, and mood tracking.  
-        - Engage in *social support*: family, stroke support groups.  
-        - Stay *mentally active*: puzzles, reading, cognitive exercises.  
-        - *Small, consistent steps*: recovery is gradual; consistency matters.
+        - Keep a recovery journal for diet, exercise, and mood tracking.  
+        - Engage in social support: family, stroke support groups.  
+        - Stay mentally active: puzzles, reading, cognitive exercises.  
+        - Small, consistent steps: recovery is gradual; consistency matters.
         """)
 
 
@@ -759,3 +760,28 @@ else:
         render_admin_dashboard()
     else:
         render_user_app()
+
+# -------------------------
+# Footer with "created by Sathish"
+# -------------------------
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        padding: 10px;
+        color: #FF69B4;
+        font-size: 14px;
+        font-weight: bold;
+        background-color: transparent;
+        z-index: 999;
+    }
+    </style>
+    <div class="footer">
+        created by Sathish
+    </div>
+    """,
+    unsafe_allow_html=True
+)
