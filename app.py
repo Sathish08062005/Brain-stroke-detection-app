@@ -11,182 +11,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
-import base64
-
-# -------------------------
-# Background Image Function
-# -------------------------
-def set_background_image():
-    # Convert the uploaded JPG to base64 for background
-    try:
-        # Read the uploaded image file
-        with open("1000271919.jpg", "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
-        
-        st.markdown(
-            f"""
-            <style>
-            .stApp {{
-                background-image: url("data:image/jpg;base64,{encoded_string}");
-                background-size: cover;
-                background-position: center;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
-            }}
-            
-            /* Add overlay for better readability */
-            .stApp::before {{
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(255, 255, 255, 0.85);
-                z-index: -1;
-            }}
-            
-            /* Style main containers for better visibility */
-            .main .block-container {{
-                background: rgba(255, 255, 255, 0.95);
-                border-radius: 15px;
-                padding: 2.5rem;
-                margin-top: 1.5rem;
-                margin-bottom: 1.5rem;
-                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-                border: 1px solid #e0e0e0;
-                backdrop-filter: blur(5px);
-            }}
-            
-            /* Style sidebar */
-            .css-1d391kg {{
-                background: rgba(255, 255, 255, 0.95) !important;
-                backdrop-filter: blur(5px);
-            }}
-            
-            /* Style headers and text */
-            h1, h2, h3, h4, h5, h6 {{
-                color: #1a237e !important;
-                font-family: 'Arial', sans-serif;
-            }}
-            
-            .stMarkdown {{
-                color: #37474f !important;
-            }}
-            
-            /* Style buttons */
-            .stButton>button {{
-                background-color: #303f9f;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 0.7rem 1.5rem;
-                font-weight: bold;
-                transition: all 0.3s ease;
-            }}
-            
-            .stButton>button:hover {{
-                background-color: #1a237e;
-                transform: translateY(-2px);
-            }}
-            
-            /* Style input fields */
-            .stTextInput>div>div>input {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px;
-            }}
-            
-            .stNumberInput>div>div>input {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px;
-            }}
-            
-            .stTextArea>div>div>textarea {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px;
-            }}
-            
-            /* Style select boxes */
-            .stSelectbox>div>div {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px;
-            }}
-            
-            /* Style file uploader */
-            .stFileUploader>div {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px;
-            }}
-            
-            /* Style tabs */
-            .stTabs [data-baseweb="tab-list"] {{
-                gap: 2px;
-            }}
-            
-            .stTabs [data-baseweb="tab"] {{
-                height: 50px;
-                white-space: pre-wrap;
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px 8px 0px 0px;
-                gap: 1px;
-                padding-top: 10px;
-                padding-bottom: 10px;
-                font-weight: 600;
-            }}
-            
-            .stTabs [aria-selected="true"] {{
-                background-color: rgba(48, 63, 159, 0.95) !important;
-                color: white !important;
-            }}
-            
-            /* Style the footer */
-            .footer {{
-                position: fixed;
-                bottom: 0;
-                right: 0;
-                padding: 12px 20px;
-                color: #1a237e;
-                font-size: 16px;
-                font-weight: bold;
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 8px;
-                margin: 15px;
-                z-index: 999;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                border: 1px solid #e0e0e0;
-            }}
-            
-            /* Style recommendation boxes for better visibility */
-            .recommendation-box {{
-                border: 2px solid #4CAF50;
-                border-radius: 12px;
-                padding: 18px;
-                margin: 12px 0;
-                background-color: rgba(255, 255, 255, 0.95);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            }}
-            
-            /* Ensure all content is readable */
-            .element-container {{
-                background: transparent;
-            }}
-            
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-    except Exception as e:
-        # Fallback to a solid color background if the image isn't available
-        st.markdown(
-            """
-            <style>
-            .stApp {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
 
 # -------------------------
 # Users & Appointments file for persistence
@@ -251,16 +75,12 @@ def load_vital_signs_from_file():
 # -------------------------
 st.set_page_config(page_title="🧠 Stroke Detection App", layout="centered")
 
-# Set the background image
-set_background_image()
-
 # -------------------------
 # App Branding
 # -------------------------
 st.markdown(
     """ 
 #  🧠 NeuroNexusAI 
-### Advanced Stroke Detection & Healthcare Management
  """,
     unsafe_allow_html=True,
 )
@@ -1089,17 +909,17 @@ def render_post_stroke_care():
     <style>
     .recommendation-box {
         border: 2px solid #4CAF50;
-        border-radius: 12px;
-        padding: 18px;
-        margin: 12px 0;
-        background-color: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .recommendation-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
     }
     .recommendation-title {
         font-weight: bold;
@@ -1238,6 +1058,19 @@ else:
 # -------------------------
 st.markdown(
     """
+    <style>
+    .footer {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        padding: 10px;
+        color: #FF69B4;
+        font-size: 14px;
+        font-weight: bold;
+        background-color: transparent;
+        z-index: 999;
+    }
+    </style>
     <div class="footer">
         created by Sathish
     </div>
