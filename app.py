@@ -1,14 +1,4 @@
-[file name]: 1000271758.jpg
-[file content begin]
-# confusion matrix
 
-T    T    F  
-F    PT    50   PF.20  
-FT    FF  
--20    -10    > 100 V.
-
-
-[file content end]
 
 import streamlit as st
 import numpy as np
