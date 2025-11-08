@@ -20,7 +20,7 @@ def set_background_image():
     # Convert the uploaded JPG to base64 for background
     try:
         # Read the uploaded image file
-        with open("1000271894.jpg", "rb") as image_file:
+        with open("1000271919.jpg", "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
         
         st.markdown(
