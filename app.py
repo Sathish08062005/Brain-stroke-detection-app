@@ -1872,7 +1872,7 @@ def get_user_location():
         "address": "Chennai, Tamil Nadu, India",
         "accuracy": "Approximate"
     }
- -------------------------
+
 # NEW FEATURE 6: Medication Reminder & Compliance Tracker
 # -------------------------
 def medication_reminder():
