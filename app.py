@@ -2763,7 +2763,7 @@ else:
         render_user_app()
 
 # -------------------------
-# Footer with "created by Sathish"
+# Footer with "created by Sathish" 
 # -------------------------
 st.markdown(
     """
