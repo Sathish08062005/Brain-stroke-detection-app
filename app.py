@@ -1519,7 +1519,7 @@ def ensure_state():
 
 # Add the file definition at top with other files:
 MEDICATION_REMINDERS_FILE = "medication_reminders.json"
-            
+else:
                     st.error("Please fill in medication name and dosage")
 # -------------------------
 # Medication Reminder & Compliance Tracker
