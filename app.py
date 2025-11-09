@@ -926,7 +926,7 @@ def render_admin_dashboard():
     tabs = st.tabs([
         "👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", 
         "📨 Telegram Settings", "🩺 Appointment Requests", "📊 Population Analytics",
-        "🥗 Nutrition Planner"
+        
     ])
 
     with tabs[0]:
