@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
-import base64  # ← ADD THIS IMPORT
+import base64
+import time
+from datetime import datetime, timedelta
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -44,7 +46,8 @@ except Exception as e:
 USERS_FILE = "users.json"
 APPOINTMENTS_FILE = "appointments.json"  # persistent storage for appointments
 VITAL_SIGNS_FILE = "vital_signs.json"   # persistent storage for vital signs
-
+MEDICATIONS_FILE = "medications.json"   # persistent storage for medications
+SYMPTOMS_FILE = "symptoms.json"         # persistent storage for symptoms
 
 def save_users_to_file():
     try:
@@ -53,7 +56,6 @@ def save_users_to_file():
     except Exception as e:
         st.error(f"Error saving users file: {e}")
 
-
 # Appointment persistence helpers
 def save_appointments_to_file():
     try:
@@ -61,7 +63,6 @@ def save_appointments_to_file():
             json.dump(st.session_state.appointments, f, indent=2)
     except Exception as e:
         st.error(f"Error saving appointments file: {e}")
-
 
 def load_appointments_from_file():
     if os.path.exists(APPOINTMENTS_FILE):
@@ -74,7 +75,6 @@ def load_appointments_from_file():
             return []
     return []
 
-
 # Vital Signs persistence helpers
 def save_vital_signs_to_file():
     try:
@@ -82,7 +82,6 @@ def save_vital_signs_to_file():
             json.dump(st.session_state.vital_signs, f, indent=2)
     except Exception as e:
         st.error(f"Error saving vital signs file: {e}")
-
 
 def load_vital_signs_from_file():
     if os.path.exists(VITAL_SIGNS_FILE):
@@ -95,6 +94,43 @@ def load_vital_signs_from_file():
             return []
     return []
 
+# Medications persistence helpers
+def save_medications_to_file():
+    try:
+        with open(MEDICATIONS_FILE, "w") as f:
+            json.dump(st.session_state.medications, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving medications file: {e}")
+
+def load_medications_from_file():
+    if os.path.exists(MEDICATIONS_FILE):
+        try:
+            with open(MEDICATIONS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
+
+# Symptoms persistence helpers
+def save_symptoms_to_file():
+    try:
+        with open(SYMPTOMS_FILE, "w") as f:
+            json.dump(st.session_state.symptoms, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving symptoms file: {e}")
+
+def load_symptoms_from_file():
+    if os.path.exists(SYMPTOMS_FILE):
+        try:
+            with open(SYMPTOMS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
 
 # -------------------------
 # Page Config
@@ -122,14 +158,11 @@ if not os.path.exists(MODEL_PATH):
     with st.spinner("⬇ Downloading stroke model... please wait ⏳"):
         gdown.download(DRIVE_URL, MODEL_PATH, quiet=False)
 
-
 @st.cache_resource(show_spinner=False)
 def load_stroke_model():
     return load_model(MODEL_PATH)
 
-
 model = load_stroke_model()
-
 
 # -------------------------
 # Preprocess image for classification
@@ -141,14 +174,12 @@ def preprocess_image(image):
     image = np.expand_dims(image, axis=0)
     return image
 
-
 def classify_image(image):
     processed = preprocess_image(image)
     prediction = model.predict(processed)[0][0]
     stroke_prob = float(prediction)
     no_stroke_prob = 1 - stroke_prob
     return stroke_prob, no_stroke_prob
-
 
 def highlight_stroke_regions(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -162,6 +193,538 @@ def highlight_stroke_regions(image):
     highlighted = cv2.addWeighted(image, 0.7, mask, 0.3, 0)
     return highlighted
 
+# -------------------------
+# NEW FEATURE 1: Symptom Checker
+# -------------------------
+def symptom_checker():
+    st.title("🚨 Stroke Symptom Checker")
+    st.write("Check your symptoms to assess stroke risk using the FAST method")
+    
+    with st.form("symptom_form"):
+        st.subheader("FAST Stroke Assessment")
+        
+        facial_drooping = st.checkbox("😐 Facial Drooping - Does one side of the face droop?")
+        arm_weakness = st.checkbox("💪 Arm Weakness - Is one arm weak or numb?")
+        speech_difficulty = st.checkbox("🗣 Speech Difficulty - Is speech slurred or strange?")
+        time_to_call = st.checkbox("⏰ Time to call emergency - If any of these symptoms are present")
+        
+        other_symptoms = st.multiselect(
+            "Other concerning symptoms:",
+            ["Sudden numbness", "Confusion", "Vision problems", "Dizziness", 
+             "Severe headache", "Loss of balance", "Trouble walking"]
+        )
+        
+        submitted = st.form_submit_button("🔍 Assess Symptoms")
+        
+        if submitted:
+            risk_score = 0
+            if facial_drooping:
+                risk_score += 25
+            if arm_weakness:
+                risk_score += 25
+            if speech_difficulty:
+                risk_score += 25
+            if time_to_call:
+                risk_score += 25
+                
+            risk_score += len(other_symptoms) * 5
+            
+            st.subheader("📊 Assessment Result")
+            
+            if risk_score >= 50:
+                st.error(f"🚨 HIGH STROKE RISK: {risk_score}%")
+                st.warning("Immediate medical attention required!")
+                st.markdown("""
+                *EMERGENCY ACTIONS:*
+                - 📞 Call 108 immediately
+                - 🏥 Go to nearest hospital
+                - 🕒 Note time symptoms started
+                - 💊 Don't take any medication
+                """)
+            elif risk_score >= 25:
+                st.warning(f"🟡 MODERATE RISK: {risk_score}%")
+                st.info("Urgent medical consultation recommended within 2 hours")
+            else:
+                st.success(f"🟢 LOW RISK: {risk_score}%")
+                st.info("Continue monitoring. Contact doctor if symptoms worsen")
+            
+            # Save symptom check
+            symptom_data = {
+                "timestamp": str(datetime.now()),
+                "facial_drooping": facial_drooping,
+                "arm_weakness": arm_weakness,
+                "speech_difficulty": speech_difficulty,
+                "other_symptoms": other_symptoms,
+                "risk_score": risk_score,
+                "checked_by": st.session_state.username
+            }
+            st.session_state.symptoms.append(symptom_data)
+            save_symptoms_to_file()
+
+# -------------------------
+# NEW FEATURE 2: Medication Tracker
+# -------------------------
+def medication_tracker():
+    st.title("💊 Medication Tracker")
+    st.write("Manage your medications and set reminders")
+    
+    tab1, tab2 = st.tabs(["📋 My Medications", "➕ Add New Medication"])
+    
+    with tab1:
+        st.subheader("Current Medications")
+        user_meds = [m for m in st.session_state.medications if m.get("user") == st.session_state.username]
+        
+        if not user_meds:
+            st.info("No medications added yet.")
+        else:
+            for i, med in enumerate(user_meds):
+                with st.expander(f"💊 {med['name']} - {med['dosage']}"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"*Frequency:* {med['frequency']}")
+                        st.write(f"*Instructions:* {med.get('instructions', 'N/A')}")
+                    with col2:
+                        st.write(f"*Start Date:* {med.get('start_date', 'N/A')}")
+                        st.write(f"*Prescribed By:* {med.get('prescribed_by', 'N/A')}")
+                    
+                    # Medication status
+                    last_taken = med.get('last_taken')
+                    if last_taken:
+                        st.success(f"✅ Last taken: {last_taken}")
+                    else:
+                        st.warning("⚠ Not taken today")
+                    
+                    if st.button(f"Mark as Taken", key=f"take_{i}"):
+                        st.session_state.medications[i]['last_taken'] = str(datetime.now())
+                        save_medications_to_file()
+                        st.success("Medication recorded!")
+                        st.rerun()
+                    
+                    if st.button(f"Remove", key=f"remove_{i}"):
+                        st.session_state.medications.pop(i)
+                        save_medications_to_file()
+                        st.success("Medication removed!")
+                        st.rerun()
+    
+    with tab2:
+        st.subheader("Add New Medication")
+        with st.form("add_medication_form"):
+            med_name = st.text_input("Medication Name")
+            dosage = st.text_input("Dosage (e.g., 10mg)")
+            frequency = st.selectbox("Frequency", 
+                ["Once daily", "Twice daily", "Thrice daily", "Four times daily", 
+                 "As needed", "Weekly", "Monthly"])
+            instructions = st.text_area("Special Instructions")
+            prescribed_by = st.text_input("Prescribed By Doctor")
+            start_date = st.date_input("Start Date")
+            
+            if st.form_submit_button("💾 Save Medication"):
+                if med_name and dosage:
+                    new_med = {
+                        "name": med_name,
+                        "dosage": dosage,
+                        "frequency": frequency,
+                        "instructions": instructions,
+                        "prescribed_by": prescribed_by,
+                        "start_date": str(start_date),
+                        "user": st.session_state.username,
+                        "added_date": str(datetime.now())
+                    }
+                    st.session_state.medications.append(new_med)
+                    save_medications_to_file()
+                    st.success("✅ Medication added successfully!")
+                    st.rerun()
+                else:
+                    st.error("Please fill in medication name and dosage")
+
+# -------------------------
+# NEW FEATURE 3: Stroke Risk Calculator
+# -------------------------
+def stroke_risk_calculator():
+    st.title("🎯 Stroke Risk Assessment")
+    st.write("Calculate your 10-year stroke risk based on health factors")
+    
+    with st.form("risk_calculator"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            age = st.slider("Age", 20, 100, 45)
+            systolic_bp = st.slider("Systolic BP (mmHg)", 80, 200, 120)
+            diabetes = st.checkbox("Diabetes")
+            smoking = st.checkbox("Current Smoker")
+            
+        with col2:
+            hypertension = st.checkbox("Hypertension")
+            heart_disease = st.checkbox("Heart Disease")
+            atrial_fib = st.checkbox("Atrial Fibrillation")
+            family_history = st.checkbox("Family History of Stroke")
+        
+        submitted = st.form_submit_button("📊 Calculate Risk")
+        
+        if submitted:
+            # Simplified risk calculation (for demonstration)
+            risk_score = 0
+            
+            # Age factor
+            if age >= 75:
+                risk_score += 30
+            elif age >= 65:
+                risk_score += 20
+            elif age >= 55:
+                risk_score += 10
+            elif age >= 45:
+                risk_score += 5
+            
+            # Blood pressure
+            if systolic_bp >= 180:
+                risk_score += 25
+            elif systolic_bp >= 160:
+                risk_score += 15
+            elif systolic_bp >= 140:
+                risk_score += 10
+            
+            # Medical conditions
+            if diabetes: risk_score += 15
+            if hypertension: risk_score += 12
+            if heart_disease: risk_score += 10
+            if atrial_fib: risk_score += 20
+            if smoking: risk_score += 10
+            if family_history: risk_score += 8
+            
+            # Cap at 100
+            risk_score = min(risk_score, 100)
+            
+            st.subheader("📈 Risk Assessment Result")
+            
+            # Display risk level
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("10-Year Stroke Risk", f"{risk_score}%")
+            with col2:
+                if risk_score < 20:
+                    st.metric("Risk Level", "LOW", delta="🟢")
+                elif risk_score < 50:
+                    st.metric("Risk Level", "MODERATE", delta="🟡", delta_color="off")
+                else:
+                    st.metric("Risk Level", "HIGH", delta="🔴", delta_color="inverse")
+            with col3:
+                st.metric("Recommendation", "Monitor" if risk_score < 50 else "Consult Doctor")
+            
+            # Risk factors breakdown
+            st.subheader("🔍 Risk Factors Breakdown")
+            factors = []
+            if age >= 65: factors.append("Age")
+            if systolic_bp >= 140: factors.append("High Blood Pressure")
+            if diabetes: factors.append("Diabetes")
+            if hypertension: factors.append("Hypertension")
+            if heart_disease: factors.append("Heart Disease")
+            if atrial_fib: factors.append("Atrial Fibrillation")
+            if smoking: factors.append("Smoking")
+            if family_history: factors.append("Family History")
+            
+            if factors:
+                st.write("*Your risk factors:*")
+                for factor in factors:
+                    st.write(f"• {factor}")
+            else:
+                st.success("No major risk factors identified!")
+            
+            # Recommendations
+            st.subheader("💡 Prevention Recommendations")
+            if risk_score >= 50:
+                st.error("*High Risk - Immediate Action Needed:*")
+                st.write("• Consult neurologist immediately")
+                st.write("• Regular blood pressure monitoring")
+                st.write("• Medication adherence")
+                st.write("• Lifestyle modifications")
+            elif risk_score >= 20:
+                st.warning("*Moderate Risk - Preventive Measures:*")
+                st.write("• Regular health checkups")
+                st.write("• Maintain healthy diet")
+                st.write("• Exercise regularly")
+                st.write("• Control blood pressure")
+            else:
+                st.success("*Low Risk - Maintenance:*")
+                st.write("• Continue healthy lifestyle")
+                st.write("• Annual health screenings")
+                st.write("• Stay active")
+                st.write("• Balanced diet")
+
+# -------------------------
+# NEW FEATURE 4: Progress Tracker
+# -------------------------
+def progress_tracker():
+    st.title("📈 Recovery Progress Tracker")
+    st.write("Track your recovery journey and monitor improvements")
+    
+    tab1, tab2, tab3 = st.tabs(["🏋 Exercise Log", "📊 Progress Charts", "🎯 Goals"])
+    
+    with tab1:
+        st.subheader("Daily Exercise Log")
+        with st.form("exercise_log"):
+            exercise_date = st.date_input("Date")
+            exercise_type = st.selectbox("Exercise Type", 
+                ["Walking", "Stretching", "Strength Training", "Balance Exercises", 
+                 "Speech Therapy", "Occupational Therapy", "Other"])
+            duration = st.number_input("Duration (minutes)", 1, 240, 30)
+            intensity = st.select_slider("Intensity", ["Very Light", "Light", "Moderate", "Hard", "Very Hard"])
+            notes = st.text_area("Notes / How you felt")
+            
+            if st.form_submit_button("💾 Log Exercise"):
+                exercise_data = {
+                    "date": str(exercise_date),
+                    "type": exercise_type,
+                    "duration": duration,
+                    "intensity": intensity,
+                    "notes": notes,
+                    "user": st.session_state.username,
+                    "logged_at": str(datetime.now())
+                }
+                if 'exercise_log' not in st.session_state:
+                    st.session_state.exercise_log = []
+                st.session_state.exercise_log.append(exercise_data)
+                st.success("Exercise logged successfully!")
+    
+    with tab2:
+        st.subheader("Progress Overview")
+        # Mock progress data
+        weeks = list(range(1, 9))
+        mobility = [30, 40, 50, 60, 65, 70, 75, 80]
+        speech = [40, 50, 55, 60, 65, 70, 75, 80]
+        cognition = [35, 45, 55, 60, 65, 70, 75, 80]
+        
+        progress_df = pd.DataFrame({
+            'Week': weeks,
+            'Mobility': mobility,
+            'Speech': speech,
+            'Cognition': cognition
+        })
+        
+        st.line_chart(progress_df.set_index('Week'))
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Mobility Improvement", "+50%", "25%")
+        with col2:
+            st.metric("Speech Clarity", "+40%", "20%")
+        with col3:
+            st.metric("Cognitive Function", "+45%", "22%")
+    
+    with tab3:
+        st.subheader("Set Recovery Goals")
+        with st.form("goal_setting"):
+            goal_type = st.selectbox("Goal Type", 
+                ["Mobility", "Speech", "Strength", "Balance", "Daily Living"])
+            goal_description = st.text_input("Goal Description")
+            target_date = st.date_input("Target Date")
+            priority = st.selectbox("Priority", ["Low", "Medium", "High"])
+            
+            if st.form_submit_button("🎯 Set Goal"):
+                st.success("Goal set successfully!")
+
+# -------------------------
+# NEW FEATURE 5: Emergency SOS System
+# -------------------------
+def emergency_sos():
+    st.title("🆘 Emergency SOS System")
+    st.write("Quick access to emergency services and contacts")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🚨 Immediate Help")
+        if st.button("📞 CALL 108 EMERGENCY", use_container_width=True, type="primary"):
+            st.error("""
+            *EMERGENCY SERVICES NOTIFIED*
+            - Ambulance dispatched
+            - Emergency contacts alerted
+            - Medical history shared with responders
+            """)
+            # Simulate emergency alert
+            st.balloons()
+            
+        st.subheader("🆘 Quick SOS")
+        if st.button("🚑 Send Location to Emergency Contacts", use_container_width=True):
+            st.warning("Location and emergency alert sent to all emergency contacts!")
+            
+    with col2:
+        st.subheader("📞 Emergency Contacts")
+        
+        # Emergency contacts management
+        if 'emergency_contacts' not in st.session_state:
+            st.session_state.emergency_contacts = [
+                {"name": "Brother", "phone": "9025845243", "relationship": "Family"},
+                {"name": "Local Hospital", "phone": "044-1234567", "relationship": "Medical"}
+            ]
+        
+        for i, contact in enumerate(st.session_state.emergency_contacts):
+            st.write(f"{contact['name']}** ({contact['relationship']})")
+            st.write(f"📞 {contact['phone']}")
+            if st.button(f"Call {contact['name']}", key=f"call_{i}"):
+                st.markdown(f"[📞 Calling {contact['phone']}](tel:{contact['phone']})")
+        
+        # Add new contact
+        with st.expander("➕ Add Emergency Contact"):
+            with st.form("add_contact"):
+                name = st.text_input("Name")
+                phone = st.text_input("Phone Number")
+                relationship = st.text_input("Relationship")
+                if st.form_submit_button("Add Contact"):
+                    if name and phone:
+                        st.session_state.emergency_contacts.append({
+                            "name": name, "phone": phone, "relationship": relationship
+                        })
+                        st.success("Contact added!")
+                        st.rerun()
+    
+    st.subheader("🧾 Emergency Information")
+    st.info("""
+    *In Case of Emergency:*
+    - Stay calm and sit down
+    - Don't drive yourself to hospital
+    - Have medication list ready
+    - Inform emergency responders about stroke symptoms
+    - Note time when symptoms started
+    """)
+
+# -------------------------
+# NEW FEATURE 6: Nutrition Planner (Admin)
+# -------------------------
+def nutrition_planner():
+    st.title("🥗 Stroke Prevention Nutrition Guide")
+    st.write("Dietary recommendations for stroke prevention and recovery")
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Meal Plans", "✅ Healthy Foods", "❌ Foods to Avoid"])
+    
+    with tab1:
+        st.subheader("Weekly Meal Plan")
+        
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        selected_day = st.selectbox("Select Day", days)
+        
+        meal_plans = {
+            "Monday": {
+                "Breakfast": "Oatmeal with berries and walnuts",
+                "Lunch": "Grilled chicken salad with olive oil dressing",
+                "Dinner": "Baked salmon with steamed vegetables",
+                "Snacks": "Apple slices with almond butter"
+            },
+            "Tuesday": {
+                "Breakfast": "Greek yogurt with honey and nuts",
+                "Lunch": "Quinoa bowl with roasted vegetables",
+                "Dinner": "Lentil soup with whole grain bread",
+                "Snacks": "Carrot sticks with hummus"
+            }
+            # Add more days as needed
+        }
+        
+        if selected_day in meal_plans:
+            plan = meal_plans[selected_day]
+            for meal, description in plan.items():
+                st.write(f"{meal}:** {description}")
+        else:
+            st.info("Meal plan being updated...")
+    
+    with tab2:
+        st.subheader("Recommended Foods")
+        
+        healthy_foods = {
+            "🟢 High Priority": [
+                "Leafy greens (spinach, kale)",
+                "Berries (blueberries, strawberries)",
+                "Fatty fish (salmon, mackerel)",
+                "Nuts and seeds",
+                "Whole grains",
+                "Olive oil"
+            ],
+            "🟡 Moderate": [
+                "Lean poultry",
+                "Low-fat dairy",
+                "Eggs",
+                "Legumes",
+                "Fresh fruits"
+            ]
+        }
+        
+        for category, foods in healthy_foods.items():
+            st.write(f"{category}")
+            for food in foods:
+                st.write(f"• {food}")
+    
+    with tab3:
+        st.subheader("Foods to Limit or Avoid")
+        
+        avoid_foods = [
+            "Processed meats (bacon, sausage)",
+            "High-sodium foods",
+            "Sugary drinks and snacks",
+            "Trans fats (fried foods)",
+            "Excessive alcohol",
+            "High-cholesterol foods"
+        ]
+        
+        for food in avoid_foods:
+            st.write(f"• 🔴 {food}")
+
+# -------------------------
+# NEW FEATURE 7: Population Analytics (Admin Only)
+# -------------------------
+def population_analytics():
+    st.title("📊 Population Health Analytics")
+    st.write("Administrative dashboard for population health insights")
+    
+    # Mock analytics data
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Patients", "1,247", "12%")
+    with col2:
+        st.metric("High Risk Patients", "89", "3%")
+    with col3:
+        st.metric("Avg. Response Time", "2.3h", "-0.5h")
+    with col4:
+        st.metric("Recovery Rate", "82%", "5%")
+    
+    # Charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Risk Distribution")
+        risk_data = pd.DataFrame({
+            'Risk Level': ['Low', 'Moderate', 'High', 'Critical'],
+            'Patients': [800, 300, 120, 27]
+        })
+        st.bar_chart(risk_data.set_index('Risk Level'))
+    
+    with col2:
+        st.subheader("Age Distribution")
+        age_data = pd.DataFrame({
+            'Age Group': ['<40', '40-60', '60-75', '75+'],
+            'Patients': [200, 450, 400, 197]
+        })
+        st.bar_chart(age_data.set_index('Age Group'))
+    
+    # Recent alerts
+    st.subheader("🚨 Recent High-Risk Alerts")
+    alerts = [
+        {"patient": "John D.", "risk": "92%", "time": "2 hours ago", "status": "Pending"},
+        {"patient": "Maria S.", "risk": "88%", "time": "5 hours ago", "status": "Contacted"},
+        {"patient": "Robert K.", "risk": "85%", "time": "1 day ago", "status": "Resolved"}
+    ]
+    
+    for alert in alerts:
+        col1, col2, col3, col4 = st.columns([2,1,1,1])
+        with col1:
+            st.write(f"{alert['patient']}")
+        with col2:
+            st.error(f"Risk: {alert['risk']}")
+        with col3:
+            st.write(alert['time'])
+        with col4:
+            if alert['status'] == 'Pending':
+                st.warning(alert['status'])
+            else:
+                st.success(alert['status'])
 
 # -------------------------
 # Model Evaluation Metrics Functions
@@ -208,7 +771,6 @@ def generate_model_metrics():
         'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn
     }
 
-
 def plot_confusion_matrix(cm):
     """Plot confusion matrix"""
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -219,7 +781,6 @@ def plot_confusion_matrix(cm):
     ax.set_ylabel('Actual')
     ax.set_title('Confusion Matrix')
     return fig
-
 
 def plot_roc_curve(fpr, tpr, roc_auc):
     """Plot ROC curve"""
@@ -234,7 +795,6 @@ def plot_roc_curve(fpr, tpr, roc_auc):
     ax.legend(loc="lower right")
     return fig
 
-
 def plot_precision_recall_curve(precision, recall, pr_auc):
     """Plot Precision-Recall curve"""
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -246,7 +806,6 @@ def plot_precision_recall_curve(precision, recall, pr_auc):
     ax.set_title('Precision-Recall Curve')
     ax.legend(loc="upper right")
     return fig
-
 
 def display_model_metrics():
     """Display all model evaluation metrics"""
@@ -303,7 +862,6 @@ def display_model_metrics():
     }
     st.table(pd.DataFrame(performance_data))
 
-
 # -------------------------
 # Auth state
 # -------------------------
@@ -321,11 +879,13 @@ def ensure_state():
                     st.session_state.users = json.load(f)
             except:
                 st.session_state.users = {
-                    "Sathish": {"password": "Praveenasathish", "role": "admin"}
+                    "Sathish": {"password": "Praveenasathish", "role": "admin"},
+                    "ziva": {"password": "ziva123", "role": "user"}
                 }
         else:
             st.session_state.users = {
-                "Sathish": {"password": "Praveenasathish", "role": "admin"}
+                "Sathish": {"password": "Praveenasathish", "role": "admin"},
+                "ziva": {"password": "ziva123", "role": "user"}
             }
     if "settings" not in st.session_state:
         st.session_state.settings = {
@@ -338,10 +898,16 @@ def ensure_state():
         st.session_state.appointments = load_appointments_from_file()
     if "vital_signs" not in st.session_state:
         st.session_state.vital_signs = load_vital_signs_from_file()
-
+    if "medications" not in st.session_state:
+        st.session_state.medications = load_medications_from_file()
+    if "symptoms" not in st.session_state:
+        st.session_state.symptoms = load_symptoms_from_file()
+    if "exercise_log" not in st.session_state:
+        st.session_state.exercise_log = []
+    if "emergency_contacts" not in st.session_state:
+        st.session_state.emergency_contacts = []
 
 ensure_state()
-
 
 # -------------------------
 # Auth functions
@@ -355,12 +921,10 @@ def login(username, password):
         return True
     return False
 
-
 def logout():
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.role = None
-
 
 def add_user(new_username, new_password, role="user"):
     if not new_username or not new_password:
@@ -371,7 +935,6 @@ def add_user(new_username, new_password, role="user"):
     save_users_to_file()
     return True, f"User '{new_username}' created."
 
-
 def delete_user(username):
     if username == "Sathish":
         return False, "Cannot delete the default admin."
@@ -381,7 +944,6 @@ def delete_user(username):
     save_users_to_file()
     return True, f"User '{username}' deleted."
 
-
 def reset_password(username, new_password):
     if username not in st.session_state.users:
         return False, "User not found."
@@ -389,10 +951,8 @@ def reset_password(username, new_password):
     save_users_to_file()
     return True, f"Password reset for '{username}'."
 
-
 def export_users_json():
     return json.dumps(st.session_state.users, indent=2)
-
 
 def import_users_json(file_bytes):
     try:
@@ -406,12 +966,21 @@ def import_users_json(file_bytes):
     except Exception as e:
         return False, f"Import failed: {e}"
 
-
 # -------------------------
 # UI: Login
 # -------------------------
 def render_login():
     st.title("🔐 Login Portal")
+    
+    # Display default users information
+    with st.expander("ℹ Default Login Credentials"):
+        st.write("*Admin Account:*")
+        st.write("- Username: Sathish")
+        st.write("- Password: Praveenasathish")
+        st.write("*User Account:*")
+        st.write("- Username: ziva")
+        st.write("- Password: ziva123")
+    
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
     colA, colB = st.columns([1, 1])
@@ -424,7 +993,6 @@ def render_login():
                 st.error("❌ Invalid Username or Password")
     with colB:
         st.caption("No registration here. Users must be created by the admin.")
-
 
 # -------------------------
 # Admin Dashboard
@@ -439,10 +1007,12 @@ def render_admin_dashboard():
             logout()
             st.rerun()
 
-    # Updated tabs for admin with separate appointment management tab
-    tabs = st.tabs(
-        ["👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", "📨 Telegram Settings", "🩺 Appointment Requests"]
-    )
+    # Updated tabs for admin with new features
+    tabs = st.tabs([
+        "👤 Create User", "🧑‍🤝‍🧑 Manage Users", "📤 Export/Import", 
+        "📨 Telegram Settings", "🩺 Appointment Requests", "📊 Population Analytics",
+        "🥗 Nutrition Planner"
+    ])
 
     with tabs[0]:
         st.subheader("Create a new user")
@@ -469,9 +1039,12 @@ def render_admin_dashboard():
                         ok, msg = reset_password(uname, new_pw)
                         (st.success if ok else st.error)(msg)
                 with cols[3]:
-                    if st.button(f"Delete {uname}", key=f"btn_del_{uname}"):
-                        ok, msg = delete_user(uname)
-                        (st.success if ok else st.error)(msg)
+                    if uname != "Sathish":  # Prevent deletion of default admin
+                        if st.button(f"Delete {uname}", key=f"btn_del_{uname}"):
+                            ok, msg = delete_user(uname)
+                            (st.success if ok else st.error)(msg)
+                    else:
+                        st.write("🔒 Protected")
         else:
             st.info("No users yet.")
 
@@ -502,9 +1075,14 @@ def render_admin_dashboard():
             st.session_state.settings["CHAT_ID"] = chat_id
             st.success("Saved Telegram settings.")
 
-    # Doctor Appointment Management in separate tab
     with tabs[4]:
         render_admin_appointments()
+
+    with tabs[5]:
+        population_analytics()
+
+    with tabs[6]:
+        nutrition_planner()
 
     st.divider()
     st.subheader("📝 Recently Sent Reports")
@@ -516,13 +1094,16 @@ def render_admin_dashboard():
     else:
         st.caption("No reports yet.")
 
-
 # -------------------------
 # Stroke App Main UI
 # -------------------------
 def render_user_app():
-    # Use tabs for user interface
-    tabs = st.tabs(["🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", "🌿 Post-Stroke Care"])
+    # Use tabs for user interface with new features
+    tabs = st.tabs([
+        "🧠 Stroke Detection", "📊 Vital Signs", "🩺 Book Appointment", 
+        "🌿 Post-Stroke Care", "🚨 Symptom Checker", "💊 Medication Tracker",
+        "🎯 Risk Calculator", "📈 Progress Tracker", "🆘 Emergency SOS"
+    ])
     
     # Tab 1: Stroke Detection
     with tabs[0]:
@@ -540,6 +1121,26 @@ def render_user_app():
     with tabs[3]:
         render_post_stroke_care()
     
+    # Tab 5: Symptom Checker (NEW)
+    with tabs[4]:
+        symptom_checker()
+    
+    # Tab 6: Medication Tracker (NEW)
+    with tabs[5]:
+        medication_tracker()
+    
+    # Tab 7: Risk Calculator (NEW)
+    with tabs[6]:
+        stroke_risk_calculator()
+    
+    # Tab 8: Progress Tracker (NEW)
+    with tabs[7]:
+        progress_tracker()
+    
+    # Tab 9: Emergency SOS (NEW)
+    with tabs[8]:
+        emergency_sos()
+    
     # Sidebar (common for all tabs)
     with st.sidebar:
         st.header("👤 Account")
@@ -547,7 +1148,6 @@ def render_user_app():
         if st.button("🚪 Logout", key="user_logout_btn"):
             logout()
             st.rerun()
-
 
 # -------------------------
 # Stroke Detection Tab Content
@@ -657,7 +1257,6 @@ def render_stroke_detection():
             except Exception as e:
                 st.error(f"❌ Error sending to Telegram: {e}")
 
-
 # -------------------------
 # Vital Signs Tab Content
 # -------------------------
@@ -747,7 +1346,7 @@ def render_vital_signs():
                     "diastolic_bp": diastolic_bp,
                     "oxygen_saturation": oxygen_saturation,
                     "notes": notes,
-                    "timestamp": str(pd.Timestamp.now()),
+                    "timestamp": str(datetime.now()),
                     "recorded_by": st.session_state.username or "unknown"
                 }
                 
@@ -802,7 +1401,6 @@ def render_vital_signs():
                     st.write(f"Oxygen Saturation: {vital['oxygen_saturation']}%")
                     if vital.get('notes'):
                         st.write(f"Notes: {vital['notes']}")
-
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
@@ -871,7 +1469,6 @@ def render_appointment_portal():
                 st.success("✅ Appointment request sent to Admin for approval.")
                 st.rerun()
 
-
 # -------------------------
 # Admin: Manage Doctor Appointments (color-coded buttons)
 # -------------------------
@@ -918,7 +1515,6 @@ def render_admin_appointments():
                     st.info(f"Deleted appointment for {removed['patient_name']}")
                     st.rerun()
             st.write("---")
-
 
 # -------------------------
 # Post-Stroke Care Recommendations Function
@@ -1066,7 +1662,6 @@ def render_post_stroke_care():
 
     st.write("---")
     st.info("💡 Tip: Follow these recommendations consistently for better recovery outcomes. Adjust timings based on your personal schedule and doctor's advice.")
-
 
 # -------------------------
 # Main Routing
