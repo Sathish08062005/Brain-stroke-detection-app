@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
 import seaborn as sns
 import pandas as pd
-import base64  # ← ADD THIS IMPORT
+import base64
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -320,12 +320,16 @@ def ensure_state():
                 with open(USERS_FILE, "r") as f:
                     st.session_state.users = json.load(f)
             except:
+                # DEFAULT USERS INCLUDING Ziva
                 st.session_state.users = {
-                    "Sathish": {"password": "Praveenasathish", "role": "admin"}
+                    "Sathish": {"password": "Praveenasathish", "role": "admin"},
+                    "ziva": {"password": "ziva123", "role": "user"}
                 }
         else:
+            # DEFAULT USERS INCLUDING Ziva
             st.session_state.users = {
-                "Sathish": {"password": "Praveenasathish", "role": "admin"}
+                "Sathish": {"password": "Praveenasathish", "role": "admin"},
+                "ziva": {"password": "ziva123", "role": "user"}
             }
     if "settings" not in st.session_state:
         st.session_state.settings = {
@@ -412,6 +416,16 @@ def import_users_json(file_bytes):
 # -------------------------
 def render_login():
     st.title("🔐 Login Portal")
+    
+    # Display default users information
+    with st.expander("ℹ Default Login Credentials"):
+        st.write("*Admin Account:*")
+        st.write("- Username: Sathish")
+        st.write("- Password: Praveenasathish")
+        st.write("*User Account:*")
+        st.write("- Username: ziva")
+        st.write("- Password: ziva123")
+    
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
     colA, colB = st.columns([1, 1])
@@ -469,9 +483,12 @@ def render_admin_dashboard():
                         ok, msg = reset_password(uname, new_pw)
                         (st.success if ok else st.error)(msg)
                 with cols[3]:
-                    if st.button(f"Delete {uname}", key=f"btn_del_{uname}"):
-                        ok, msg = delete_user(uname)
-                        (st.success if ok else st.error)(msg)
+                    if uname != "Sathish":  # Prevent deletion of default admin
+                        if st.button(f"Delete {uname}", key=f"btn_del_{uname}"):
+                            ok, msg = delete_user(uname)
+                            (st.success if ok else st.error)(msg)
+                    else:
+                        st.write("🔒 Protected")
         else:
             st.info("No users yet.")
 
