@@ -14,6 +14,8 @@ import pandas as pd
 import base64
 import time
 from datetime import datetime, timedelta
+import time
+import random
 
 # SIMPLE BACKGROUND FALLBACK
 try:
