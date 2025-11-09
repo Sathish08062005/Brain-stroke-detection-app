@@ -5,8 +5,6 @@ import json
 import requests
 import os
 import gdown
-import tensorflow as tf
-from io import BytesIO
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import matplotlib.pyplot as plt
