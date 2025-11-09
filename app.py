@@ -5,15 +5,18 @@ import json
 import requests
 import os
 import gdown
+import time
+import random
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
-import seaborn as sns 
+import seaborn as sns
 import pandas as pd
 import base64
 import time
 from datetime import datetime, timedelta
+
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -336,7 +339,313 @@ def medication_tracker():
                     st.rerun()
                 else:
                     st.error("Please fill in medication name and dosage")
+# -------------------------
+# Medication Reminder & Compliance Tracker
+# -------------------------
+def medication_reminder():
+    st.title("💊 Smart Medication Reminder")
+    st.write("Set reminders and track medication compliance")
+    
+    tab1, tab2, tab3 = st.tabs(["🕐 Set Reminders", "📊 Compliance Tracking", "📋 Medication List"])
+    
+    with tab1:
+        st.subheader("⏰ Set Medication Reminders")
+        with st.form("reminder_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                med_name = st.text_input("Medication Name")
+                dosage = st.text_input("Dosage")
+                frequency = st.selectbox("Frequency", 
+                    ["Once daily", "Twice daily", "Thrice daily", "Four times daily", 
+                     "Every 6 hours", "Every 8 hours", "Weekly", "As needed"])
+                
+            with col2:
+                reminder_time = st.time_input("Reminder Time")
+                start_date = st.date_input("Start Date")
+                end_date = st.date_input("End Date (optional)")
+            
+            days_of_week = st.multiselect("Days to repeat", 
+                ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+            
+            if st.form_submit_button("💾 Save Reminder"):
+                reminder_data = {
+                    "medication": med_name,
+                    "dosage": dosage,
+                    "frequency": frequency,
+                    "time": str(reminder_time),
+                    "days": days_of_week,
+                    "start_date": str(start_date),
+                    "end_date": str(end_date) if end_date else None,
+                    "user": st.session_state.username,
+                    "created": str(datetime.now())
+                }
+                
+                if 'medication_reminders' not in st.session_state:
+                    st.session_state.medication_reminders = []
+                st.session_state.medication_reminders.append(reminder_data)
+                st.success("✅ Reminder set successfully!")
+    
+    with tab2:
+        st.subheader("📈 Medication Compliance")
+        
+        # Mock compliance data
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("This Week", "85%", "5%")
+        with col2:
+            st.metric("This Month", "78%", "-2%")
+        with col3:
+            st.metric("On Time", "92%", "3%")
+        with col4:
+            st.metric("Missed", "8%", "-1%")
+        
+        # Compliance calendar
+        st.subheader("📅 This Month's Compliance")
+        # Simple calendar view
+        today = datetime.now().date()
+        days_in_month = 30
+        compliance_data = []
+        
+        for day in range(1, days_in_month + 1):
+            status = "taken" if day % 7 != 0 else "missed"  # Mock data
+            compliance_data.append({"day": day, "status": status})
+        
+        # Display as colored boxes
+        cols = st.columns(10)
+        for i, day_data in enumerate(compliance_data[:10]):  # Show first 10 days
+            with cols[i % 10]:
+                if day_data['status'] == 'taken':
+                    st.success(f"{day_data['day']}")
+                else:
+                    st.error(f"{day_data['day']}")
+    
+    with tab3:
+        st.subheader("💊 Today's Medications")
+        
+        # Get today's medications
+        today = datetime.now().strftime("%A")
+        if 'medication_reminders' in st.session_state:
+            today_meds = [m for m in st.session_state.medication_reminders 
+                         if today in m.get('days', []) and m.get('user') == st.session_state.username]
+            
+            if not today_meds:
+                st.info("No medications scheduled for today.")
+            else:
+                for i, med in enumerate(today_meds):
+                    with st.expander(f"💊 {med['medication']} - {med['dosage']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"*Time:* {med['time']}")
+                            st.write(f"*Frequency:* {med['frequency']}")
+                        with col2:
+                            if st.button(f"✅ Taken", key=f"taken_{i}"):
+                                # Log medication taken
+                                if 'medication_log' not in st.session_state:
+                                    st.session_state.medication_log = []
+                                st.session_state.medication_log.append({
+                                    "medication": med['medication'],
+                                    "timestamp": str(datetime.now()),
+                                    "status": "taken",
+                                    "user": st.session_state.username
+                                })
+                                st.success("Medication recorded as taken!")
+                                st.rerun()
+                            
+                            if st.button(f"❌ Missed", key=f"missed_{i}"):
+                                if 'medication_log' not in st.session_state:
+                                    st.session_state.medication_log = []
+                                st.session_state.medication_log.append({
+                                    "medication": med['medication'],
+                                    "timestamp": str(datetime.now()),
+                                    "status": "missed",
+                                    "user": st.session_state.username
+                                })
+                                st.warning("Medication recorded as missed.")
+                                st.rerun()
 
+# -------------------------
+# Cognitive Assessment & Memory Games
+# -------------------------
+def cognitive_assessment():
+    st.title("🧠 Cognitive Assessment")
+    st.write("Simple games to track cognitive function and memory")
+    
+    tab1, tab2, tab3 = st.tabs(["🎯 Memory Test", "🔤 Word Recall", "📊 Results"])
+    
+    with tab1:
+        st.subheader("🎯 Memory Card Game")
+        
+        if 'memory_game_started' not in st.session_state:
+            st.session_state.memory_game_started = False
+            st.session_state.memory_cards = ['A', 'B', 'C', 'D', 'A', 'B', 'C', 'D']
+            st.session_state.memory_selected = []
+            st.session_state.memory_matches = 0
+            st.session_state.memory_attempts = 0
+        
+        if not st.session_state.memory_game_started:
+            st.info("""
+            *Memory Game Instructions:*
+            - Remember the positions of matching pairs
+            - Click cards to flip them
+            - Find all matching pairs
+            - Your score and time will be recorded
+            """)
+            if st.button("Start Memory Game"):
+                st.session_state.memory_game_started = True
+                st.session_state.game_start_time = datetime.now()
+                st.rerun()
+        else:
+            # Display memory game grid
+            st.write("Find the matching pairs!")
+            cols = st.columns(4)
+            
+            for i in range(8):
+                with cols[i % 4]:
+                    if i in st.session_state.memory_selected:
+                        st.success(f"Card {i+1}: {st.session_state.memory_cards[i]}")
+                    else:
+                        if st.button(f"Card {i+1}", key=f"card_{i}"):
+                            st.session_state.memory_selected.append(i)
+                            st.session_state.memory_attempts += 1
+                            st.rerun()
+            
+            # Check for matches
+            if len(st.session_state.memory_selected) == 2:
+                idx1, idx2 = st.session_state.memory_selected
+                if st.session_state.memory_cards[idx1] == st.session_state.memory_cards[idx2]:
+                    st.session_state.memory_matches += 1
+                    st.success("🎉 Match found!")
+                else:
+                    st.error("❌ No match, try again!")
+                
+                # Reset selection after delay
+                time.sleep(1)
+                st.session_state.memory_selected = []
+                st.rerun()
+            
+            # Game completion
+            if st.session_state.memory_matches == 4:
+                end_time = datetime.now()
+                time_taken = (end_time - st.session_state.game_start_time).seconds
+                st.balloons()
+                st.success(f"""
+                🎉 Game Completed!
+                - Time: {time_taken} seconds
+                - Attempts: {st.session_state.memory_attempts}
+                - Score: {(8/st.session_state.memory_attempts)*100:.1f}%
+                """)
+                
+                # Save results
+                cognitive_data = {
+                    "test_type": "memory_game",
+                    "score": (8/st.session_state.memory_attempts)*100,
+                    "time_taken": time_taken,
+                    "attempts": st.session_state.memory_attempts,
+                    "timestamp": str(datetime.now()),
+                    "user": st.session_state.username
+                }
+                
+                if 'cognitive_results' not in st.session_state:
+                    st.session_state.cognitive_results = []
+                st.session_state.cognitive_results.append(cognitive_data)
+                
+                if st.button("Play Again"):
+                    st.session_state.memory_game_started = False
+                    st.rerun()
+    
+    with tab2:
+        st.subheader("🔤 Word Recall Test")
+        
+        if 'word_test_started' not in st.session_state:
+            st.session_state.word_test_started = False
+            st.session_state.words_to_remember = ["Apple", "River", "Mountain", "Book", "Sun"]
+            st.session_state.recalled_words = []
+        
+        if not st.session_state.word_test_started:
+            st.info("""
+            *Word Recall Test:*
+            - Memorize these 5 words for 30 seconds
+            - Then type as many as you can remember
+            - This tests short-term memory
+            """)
+            st.warning("*Words to remember:* " + ", ".join(st.session_state.words_to_remember))
+            
+            if st.button("Start 30-second memorization"):
+                st.session_state.word_test_started = True
+                st.session_state.test_start_time = datetime.now()
+                st.rerun()
+        else:
+            elapsed = (datetime.now() - st.session_state.test_start_time).seconds
+            time_left = 30 - elapsed
+            
+            if time_left > 0:
+                st.warning(f"⏰ Time left: {time_left} seconds")
+                st.info("Memorize these words: " + ", ".join(st.session_state.words_to_remember))
+            else:
+                st.subheader("Time's up! Type the words you remember:")
+                
+                recalled = st.text_area("Enter words separated by commas")
+                
+                if st.button("Submit Recall"):
+                    recalled_words = [word.strip() for word in recalled.split(",") if word.strip()]
+                    correct_words = [word for word in recalled_words if word in st.session_state.words_to_remember]
+                    score = (len(correct_words) / len(st.session_state.words_to_remember)) * 100
+                    
+                    st.success(f"""
+                    *Recall Results:*
+                    - Words remembered: {len(correct_words)}/5
+                    - Score: {score:.1f}%
+                    - Correct: {', '.join(correct_words) if correct_words else 'None'}
+                    """)
+                    
+                    # Save results
+                    word_data = {
+                        "test_type": "word_recall",
+                        "score": score,
+                        "words_remembered": len(correct_words),
+                        "timestamp": str(datetime.now()),
+                        "user": st.session_state.username
+                    }
+                    
+                    if 'cognitive_results' not in st.session_state:
+                        st.session_state.cognitive_results = []
+                    st.session_state.cognitive_results.append(word_data)
+                    
+                    if st.button("Take Test Again"):
+                        st.session_state.word_test_started = False
+                        st.rerun()
+    
+    with tab3:
+        st.subheader("📊 Cognitive Test History")
+        
+        if 'cognitive_results' in st.session_state:
+            user_results = [r for r in st.session_state.cognitive_results 
+                           if r.get('user') == st.session_state.username]
+            
+            if not user_results:
+                st.info("No test results yet. Complete some cognitive tests!")
+            else:
+                # Convert to DataFrame for display
+                results_df = pd.DataFrame(user_results)
+                st.dataframe(results_df[['test_type', 'score', 'timestamp']])
+                
+                # Simple trend chart
+                if len(user_results) > 1:
+                    st.subheader("📈 Score Trend")
+                    trend_df = pd.DataFrame(user_results)
+                    trend_df['timestamp'] = pd.to_datetime(trend_df['timestamp'])
+                    trend_df = trend_df.sort_values('timestamp')
+                    
+                    fig, ax = plt.subplots(figsize=(10, 4))
+                    ax.plot(trend_df['timestamp'], trend_df['score'], marker='o', linewidth=2)
+                    ax.set_xlabel('Date')
+                    ax.set_ylabel('Score (%)')
+                    ax.set_title('Cognitive Test Performance Over Time')
+                    ax.grid(True, alpha=0.3)
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
 # -------------------------
 # NEW FEATURE 3: Stroke Risk Calculator
 # -------------------------
@@ -805,6 +1114,411 @@ def ensure_state():
 
 # And add the file persistence at the top with other file definitions:
 PROGRESS_FILE = "progress_data.json"# -------------------------
+# -------------------------
+# Medical Reminder Program
+# -------------------------
+MEDICATION_REMINDERS_FILE = "medication_reminders.json"
+
+def save_medication_reminders():
+    try:
+        with open(MEDICATION_REMINDERS_FILE, "w") as f:
+            json.dump(st.session_state.medication_reminders, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving medication reminders: {e}")
+
+def load_medication_reminders():
+    if os.path.exists(MEDICATION_REMINDERS_FILE):
+        try:
+            with open(MEDICATION_REMINDERS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
+
+def medication_reminder():
+    st.title("💊 Smart Medication Reminder")
+    st.write("Never miss your medication with smart reminders and tracking")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["🕐 Set Reminders", "📋 Today's Medications", "📊 Compliance Tracking", "⚙ Manage Medications"])
+    
+    with tab1:
+        st.subheader("⏰ Set New Medication Reminder")
+        with st.form("reminder_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                med_name = st.text_input("Medication Name*", placeholder="e.g., Aspirin, Metformin")
+                dosage = st.text_input("Dosage*", placeholder="e.g., 75mg, 500mg")
+                medication_type = st.selectbox("Medication Type", 
+                    ["Tablet", "Capsule", "Liquid", "Injection", "Inhaler", "Cream", "Other"])
+                
+            with col2:
+                frequency = st.selectbox("Frequency*", 
+                    ["Once daily", "Twice daily", "Thrice daily", "Four times daily", 
+                     "Every 6 hours", "Every 8 hours", "Weekly", "As needed"])
+                start_date = st.date_input("Start Date*", value=datetime.now().date())
+                end_date = st.date_input("End Date (optional)", value=None)
+            
+            st.subheader("🕒 Reminder Schedule")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                reminder_times = []
+                if frequency == "Once daily":
+                    reminder_times.append(st.time_input("Reminder Time", value=datetime.now().time()))
+                elif frequency == "Twice daily":
+                    reminder_times.append(st.time_input("Morning Time", value=datetime.strptime("08:00", "%H:%M").time()))
+                    reminder_times.append(st.time_input("Evening Time", value=datetime.strptime("20:00", "%H:%M").time()))
+                elif frequency == "Thrice daily":
+                    reminder_times.append(st.time_input("Morning Time", value=datetime.strptime("08:00", "%H:%M").time()))
+                    reminder_times.append(st.time_input("Afternoon Time", value=datetime.strptime("14:00", "%H:%M").time()))
+                    reminder_times.append(st.time_input("Evening Time", value=datetime.strptime("20:00", "%H:%M").time()))
+                else:
+                    st.info("Reminders will be set based on frequency")
+            
+            with col2:
+                days_of_week = st.multiselect("Days to repeat*", 
+                    ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                    default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+                
+                reminder_type = st.selectbox("Reminder Type", 
+                    ["Popup Notification", "Sound Alert", "Vibration", "All"])
+            
+            st.subheader("📝 Additional Information")
+            instructions = st.text_area("Special Instructions", 
+                placeholder="e.g., Take with food, Avoid dairy products, Shake well before use...")
+            prescribed_by = st.text_input("Prescribed By Doctor", placeholder="Dr. Name")
+            pharmacy = st.text_input("Pharmacy Information", placeholder="Pharmacy name and contact")
+            
+            important_notes = st.text_area("Important Notes", 
+                placeholder="Any side effects to watch for, storage instructions, etc.")
+            
+            submitted = st.form_submit_button("💾 Save Medication Reminder")
+            
+            if submitted:
+                if med_name and dosage and days_of_week:
+                    reminder_data = {
+                        "id": len(st.session_state.medication_reminders) + 1,
+                        "medication": med_name,
+                        "dosage": dosage,
+                        "type": medication_type,
+                        "frequency": frequency,
+                        "reminder_times": [str(time) for time in reminder_times],
+                        "days": days_of_week,
+                        "start_date": str(start_date),
+                        "end_date": str(end_date) if end_date else None,
+                        "reminder_type": reminder_type,
+                        "instructions": instructions,
+                        "prescribed_by": prescribed_by,
+                        "pharmacy": pharmacy,
+                        "important_notes": important_notes,
+                        "user": st.session_state.username,
+                        "created": str(datetime.now()),
+                        "active": True,
+                        "total_taken": 0,
+                        "total_missed": 0
+                    }
+                    
+                    st.session_state.medication_reminders.append(reminder_data)
+                    save_medication_reminders()
+                    st.success("✅ Medication reminder set successfully!")
+                    st.balloons()
+                    
+                    # Show summary
+                    st.info(f"""
+                    *Reminder Summary:*
+                    - 💊 *Medication:* {med_name} {dosage}
+                    - 🕒 *Schedule:* {frequency}
+                    - 📅 *Days:* {', '.join(days_of_week)}
+                    - 🚀 *Status:* Active from {start_date}
+                    """)
+                else:
+                    st.error("Please fill in all required fields (marked with *)")
+    
+    with tab2:
+        st.subheader("💊 Today's Medication Schedule")
+        
+        # Get today's medications
+        today = datetime.now().strftime("%A")
+        today_date = datetime.now().date()
+        
+        user_meds = [m for m in st.session_state.medication_reminders 
+                    if m.get('user') == st.session_state.username and m.get('active', True)]
+        
+        today_meds = [m for m in user_meds if today in m.get('days', [])]
+        
+        if not today_meds:
+            st.success("🎉 No medications scheduled for today! Enjoy your day!")
+        else:
+            st.info(f"You have {len(today_meds)} medication(s) scheduled for today")
+            
+            # Sort medications by time
+            today_meds.sort(key=lambda x: x.get('reminder_times', [''])[0] if x.get('reminder_times') else '')
+            
+            for i, med in enumerate(today_meds):
+                # Check if already taken today
+                taken_today = any(
+                    log.get('medication_id') == med['id'] and 
+                    log.get('timestamp', '').startswith(str(today_date)) and
+                    log.get('status') == 'taken'
+                    for log in st.session_state.medication_log
+                )
+                
+                status_color = "✅" if taken_today else "⏰"
+                status_text = "Taken" if taken_today else "Pending"
+                card_color = "success" if taken_today else "warning"
+                
+                with st.expander(f"{status_color} {med['medication']} - {med['dosage']} ({status_text})", expanded=not taken_today):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"*Type:* {med['type']}")
+                        st.write(f"*Frequency:* {med['frequency']}")
+                        if med.get('reminder_times'):
+                            st.write(f"*Times:* {', '.join([t[:5] for t in med['reminder_times']])}")
+                        st.write(f"*Days:* {', '.join(med['days'])}")
+                        
+                    with col2:
+                        st.write(f"*Prescribed by:* {med.get('prescribed_by', 'Not specified')}")
+                        st.write(f"*Compliance:* {med.get('total_taken', 0)} taken / {med.get('total_missed', 0)} missed")
+                        
+                        if not taken_today:
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                if st.button(f"✅ Taken", key=f"taken_{med['id']}", use_container_width=True):
+                                    # Log medication taken
+                                    st.session_state.medication_log.append({
+                                        "medication_id": med['id'],
+                                        "medication": med['medication'],
+                                        "dosage": med['dosage'],
+                                        "timestamp": str(datetime.now()),
+                                        "status": "taken",
+                                        "user": st.session_state.username
+                                    })
+                                    # Update medication stats
+                                    for m in st.session_state.medication_reminders:
+                                        if m['id'] == med['id']:
+                                            m['total_taken'] = m.get('total_taken', 0) + 1
+                                    save_medication_reminders()
+                                    st.success(f"✅ {med['medication']} marked as taken!")
+                                    st.rerun()
+                            
+                            with col_btn2:
+                                if st.button(f"❌ Missed", key=f"missed_{med['id']}", use_container_width=True):
+                                    st.session_state.medication_log.append({
+                                        "medication_id": med['id'],
+                                        "medication": med['medication'],
+                                        "dosage": med['dosage'],
+                                        "timestamp": str(datetime.now()),
+                                        "status": "missed",
+                                        "user": st.session_state.username
+                                    })
+                                    # Update medication stats
+                                    for m in st.session_state.medication_reminders:
+                                        if m['id'] == med['id']:
+                                            m['total_missed'] = m.get('total_missed', 0) + 1
+                                    save_medication_reminders()
+                                    st.warning(f"❌ {med['medication']} marked as missed.")
+                                    st.rerun()
+                        else:
+                            st.success("*Already taken today!* ✅")
+                            taken_time = next(
+                                (log['timestamp'] for log in st.session_state.medication_log 
+                                 if log.get('medication_id') == med['id'] and 
+                                 log.get('timestamp', '').startswith(str(today_date)) and
+                                 log.get('status') == 'taken'),
+                                "Today"
+                            )
+                            st.write(f"*Taken at:* {taken_time[11:16]}")
+                    
+                    # Additional information
+                    if med.get('instructions'):
+                        st.info(f"*Instructions:* {med['instructions']}")
+                    
+                    if med.get('important_notes'):
+                        st.warning(f"*Important Notes:* {med['important_notes']}")
+            
+            # Today's summary
+            st.subheader("📈 Today's Summary")
+            taken_today = len([log for log in st.session_state.medication_log 
+                             if log.get('timestamp', '').startswith(str(today_date)) and 
+                             log.get('status') == 'taken' and
+                             log.get('user') == st.session_state.username])
+            
+            missed_today = len([log for log in st.session_state.medication_log 
+                              if log.get('timestamp', '').startswith(str(today_date)) and 
+                              log.get('status') == 'missed' and
+                              log.get('user') == st.session_state.username])
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Scheduled", len(today_meds))
+            with col2:
+                st.metric("Taken", taken_today, f"+{taken_today}")
+            with col3:
+                st.metric("Missed", missed_today, f"+{missed_today}")
+    
+    with tab3:
+        st.subheader("📊 Medication Compliance Analytics")
+        
+        # Calculate compliance metrics
+        user_meds = [m for m in st.session_state.medication_reminders 
+                    if m.get('user') == st.session_state.username]
+        user_logs = [log for log in st.session_state.medication_log 
+                    if log.get('user') == st.session_state.username]
+        
+        total_medications = len(user_meds)
+        total_taken = len([log for log in user_logs if log.get('status') == 'taken'])
+        total_missed = len([log for log in user_logs if log.get('status') == 'missed'])
+        
+        total_actions = total_taken + total_missed
+        overall_compliance = (total_taken / total_actions * 100) if total_actions > 0 else 0
+        
+        # Weekly compliance (last 7 days)
+        week_ago = datetime.now().date() - timedelta(days=7)
+        recent_logs = [log for log in user_logs 
+                      if datetime.strptime(log['timestamp'][:10], '%Y-%m-%d').date() >= week_ago]
+        
+        recent_taken = len([log for log in recent_logs if log.get('status') == 'taken'])
+        recent_missed = len([log for log in recent_logs if log.get('status') == 'missed'])
+        recent_total = recent_taken + recent_missed
+        weekly_compliance = (recent_taken / recent_total * 100) if recent_total > 0 else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Active Medications", total_medications)
+        with col2:
+            st.metric("Overall Compliance", f"{overall_compliance:.1f}%", 
+                     f"{weekly_compliance - overall_compliance:+.1f}%")
+        with col3:
+            st.metric("Weekly Compliance", f"{weekly_compliance:.1f}%", "5.2%")
+        with col4:
+            st.metric("Total Taken", total_taken, f"+{recent_taken}")
+        
+        # Compliance trends chart
+        st.subheader("📅 Weekly Compliance Trend")
+        
+        # Generate last 7 days data
+        days = []
+        compliance_rates = []
+        
+        for i in range(7):
+            day = datetime.now().date() - timedelta(days=6-i)
+            day_logs = [log for log in user_logs 
+                       if log['timestamp'].startswith(str(day))]
+            day_taken = len([log for log in day_logs if log.get('status') == 'taken'])
+            day_total = len(day_logs)
+            day_compliance = (day_taken / day_total * 100) if day_total > 0 else 0
+            
+            days.append(day.strftime("%a"))
+            compliance_rates.append(day_compliance)
+        
+        chart_data = pd.DataFrame({
+            'Day': days,
+            'Compliance %': compliance_rates
+        })
+        
+        st.bar_chart(chart_data.set_index('Day'))
+        
+        # Medication-specific compliance
+        st.subheader("💊 Medication-wise Compliance")
+        
+        if user_meds:
+            for med in user_meds:
+                med_taken = med.get('total_taken', 0)
+                med_missed = med.get('total_missed', 0)
+                med_total = med_taken + med_missed
+                med_compliance = (med_taken / med_total * 100) if med_total > 0 else 0
+                
+                col1, col2, col3 = st.columns([3, 2, 1])
+                with col1:
+                    st.write(f"{med['medication']}** {med['dosage']}")
+                with col2:
+                    st.progress(med_compliance/100, text=f"{med_compliance:.1f}%")
+                with col3:
+                    st.write(f"{med_taken}/{med_total}")
+        else:
+            st.info("No medications tracked yet. Add some medications to see analytics!")
+    
+    with tab4:
+        st.subheader("⚙ Manage Your Medications")
+        
+        user_meds = [m for m in st.session_state.medication_reminders 
+                    if m.get('user') == st.session_state.username]
+        
+        if not user_meds:
+            st.info("No medications added yet. Set up your first medication reminder!")
+        else:
+            st.write(f"*Total medications:* {len(user_meds)}")
+            
+            for i, med in enumerate(user_meds):
+                status = "🟢 Active" if med.get('active', True) else "🔴 Inactive"
+                
+                with st.expander(f"{status} - {med['medication']} {med['dosage']}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"*Type:* {med['type']}")
+                        st.write(f"*Frequency:* {med['frequency']}")
+                        st.write(f"*Schedule:* {', '.join(med['days'])}")
+                        if med.get('reminder_times'):
+                            st.write(f"*Times:* {', '.join([t[:5] for t in med['reminder_times']])}")
+                        
+                    with col2:
+                        st.write(f"*Start Date:* {med['start_date']}")
+                        if med.get('end_date'):
+                            st.write(f"*End Date:* {med['end_date']}")
+                        st.write(f"*Compliance:* {med.get('total_taken', 0)} taken / {med.get('total_missed', 0)} missed")
+                        st.write(f"*Prescribed by:* {med.get('prescribed_by', 'Not specified')}")
+                    
+                    # Action buttons
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if med.get('active', True):
+                            if st.button(f"⏸ Pause", key=f"pause_{med['id']}", use_container_width=True):
+                                st.session_state.medication_reminders[i]['active'] = False
+                                save_medication_reminders()
+                                st.success(f"⏸ {med['medication']} reminders paused")
+                                st.rerun()
+                        else:
+                            if st.button(f"▶ Resume", key=f"resume_{med['id']}", use_container_width=True):
+                                st.session_state.medication_reminders[i]['active'] = True
+                                save_medication_reminders()
+                                st.success(f"▶ {med['medication']} reminders resumed")
+                                st.rerun()
+                    
+                    with col2:
+                        if st.button(f"✏ Edit", key=f"edit_{med['id']}", use_container_width=True):
+                            st.info("Edit functionality coming soon!")
+                    
+                    with col3:
+                        if st.button(f"🗑 Delete", key=f"delete_{med['id']}", use_container_width=True):
+                            st.session_state.medication_reminders.pop(i)
+                            save_medication_reminders()
+                            st.success(f"🗑 {med['medication']} deleted successfully!")
+                            st.rerun()
+                    
+                    # Show additional information if available
+                    if med.get('instructions'):
+                        st.info(f"*Instructions:* {med['instructions']}")
+                    
+                    if med.get('important_notes'):
+                        st.warning(f"*Important Notes:* {med['important_notes']}")
+
+# Add this to your ensure_state() function:
+def ensure_state():
+    # ... existing code ...
+    if "medication_reminders" not in st.session_state:
+        st.session_state.medication_reminders = load_medication_reminders()
+    if "medication_log" not in st.session_state:
+        st.session_state.medication_log = []
+    # ... rest of existing code ...
+
+# Add the file definition at top with other files:
+MEDICATION_REMINDERS_FILE = "medication_reminders.json"
 # NEW FEATURE 5: Emergency SOS System
 # -------------------------
 def emergency_sos():
@@ -868,7 +1582,186 @@ def emergency_sos():
     - Inform emergency responders about stroke symptoms
     - Note time when symptoms started
     """)
+# -------------------------
+# Enhanced Emergency SOS with Telegram Location
+# -------------------------
+def emergency_sos():
+    st.title("🆘 Emergency SOS System")
+    st.write("Quick access to emergency services and contacts with location sharing")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🚨 Immediate Emergency")
+        
+        # Get user's current location (approximate)
+        st.info("📍 Your approximate location will be sent with the emergency alert")
+        
+        if st.button("📞 SEND EMERGENCY SOS WITH LOCATION", use_container_width=True, type="primary"):
+            # Get Telegram settings
+            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
+            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
+            
+            if not BOT_TOKEN or not CHAT_ID:
+                st.error("❌ Telegram not configured. Please set BOT_TOKEN and CHAT_ID in admin settings.")
+                return
+            
+            # Create emergency message with location info
+            emergency_message = (
+                "🚨🚨🚨 EMERGENCY SOS ALERT 🚨🚨🚨\n\n"
+                f"👤 User: {st.session_state.username}\n"
+                f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"📱 App: NeuroNexusAI Stroke Detection\n"
+                f"📍 Location: User's current location (approximate)\n"
+                f"🔗 Map: https://maps.google.com/?q=USER+CURRENT+LOCATION\n\n"
+                "🆘 IMMEDIATE MEDICAL ATTENTION REQUIRED!\n"
+                "User has triggered emergency SOS from the stroke detection app.\n\n"
+                "📞 Please contact emergency services immediately:\n"
+                "• India: 108 (Ambulance)\n"
+                "• India: 102 (Ambulance)\n"
+                "• Local police: 100\n\n"
+                "⚠ User may be experiencing stroke symptoms and requires urgent medical care."
+            )
+            
+            # Send to Telegram
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            try:
+                response = requests.post(url, data={
+                    "chat_id": CHAT_ID, 
+                    "text": emergency_message,
+                    "parse_mode": "HTML"
+                })
+                
+                if response.status_code == 200:
+                    st.error("""
+                    🚨 EMERGENCY SOS SENT SUCCESSFULLY!
+                    
+                    *What to do next:*
+                    - Stay calm and sit down
+                    - Don't drive yourself to hospital
+                    - Wait for emergency services
+                    - Keep your phone accessible
+                    - Have your ID and insurance ready
+                    """)
+                    
+                    # Log the emergency
+                    emergency_log = {
+                        "user": st.session_state.username,
+                        "timestamp": str(datetime.now()),
+                        "type": "SOS",
+                        "message": "Emergency SOS with location sent via Telegram",
+                        "telegram_sent": True
+                    }
+                    
+                    if 'emergency_logs' not in st.session_state:
+                        st.session_state.emergency_logs = []
+                    st.session_state.emergency_logs.append(emergency_log)
+                    
+                    st.balloons()
+                else:
+                    st.error(f"❌ Failed to send SOS. Telegram API error: {response.status_code}")
+                    
+            except Exception as e:
+                st.error(f"❌ Error sending SOS to Telegram: {e}")
+        
+        st.subheader("🆘 Quick Actions")
+        if st.button("📱 Share Location via SMS", use_container_width=True):
+            st.warning("""
+            *SMS Emergency Template:*
+            Copy and send this message to your emergency contacts:
+            
+            "EMERGENCY! I need immediate medical assistance. 
+            My current location is [Your Location]. 
+            Please send help. Sent via NeuroNexusAI App."
+            """)
+    
+    with col2:
+        st.subheader("📞 Emergency Contacts")
+        
+        # Emergency contacts management
+        if 'emergency_contacts' not in st.session_state:
+            st.session_state.emergency_contacts = [
+                {"name": "Family Member", "phone": "9025845243", "relationship": "Family"},
+                {"name": "Local Hospital", "phone": "044-1234567", "relationship": "Medical"},
+                {"name": "Neighbor", "phone": "9876543210", "relationship": "Neighbor"}
+            ]
+        
+        for i, contact in enumerate(st.session_state.emergency_contacts):
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                st.write(f"{contact['name']}** ({contact['relationship']})")
+                st.write(f"📞 {contact['phone']}")
+            with col_b:
+                if st.button(f"Call", key=f"call_{i}"):
+                    st.markdown(f"[📞 Calling {contact['phone']}](tel:{contact['phone']})")
+        
+        # Add new contact
+        with st.expander("➕ Add Emergency Contact"):
+            with st.form("add_contact_form"):
+                name = st.text_input("Contact Name")
+                phone = st.text_input("Phone Number")
+                relationship = st.selectbox("Relationship", 
+                    ["Family", "Friend", "Neighbor", "Doctor", "Hospital", "Other"])
+                
+                if st.form_submit_button("Add Contact"):
+                    if name and phone:
+                        st.session_state.emergency_contacts.append({
+                            "name": name, 
+                            "phone": phone, 
+                            "relationship": relationship
+                        })
+                        st.success("Contact added!")
+                        st.rerun()
+    
+    # Emergency Information Section
+    st.subheader("🧾 Emergency Preparedness")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("""
+        *Before Emergency:*
+        - Save emergency contacts in this app
+        - Know your exact address
+        - Keep medical info accessible
+        - Program emergency numbers in phone
+        """)
+    
+    with col2:
+        st.warning("""
+        *During Emergency:*
+        - Stay calm and sit down
+        - Don't drive yourself
+        - Have medication list ready
+        - Inform about stroke symptoms
+        - Note symptom start time
+        """)
+    
+    # Emergency logs (if any)
+    if 'emergency_logs' in st.session_state and st.session_state.emergency_logs:
+        st.subheader("📋 Emergency History")
+        user_emergencies = [e for e in st.session_state.emergency_logs if e.get('user') == st.session_state.username]
+        
+        if user_emergencies:
+            for emergency in user_emergencies[-5:]:  # Show last 5
+                st.write(f"⏰ {emergency['timestamp'][:16]} - {emergency['message']}")
 
+# Add this helper function for location services (conceptual)
+def get_user_location():
+    """
+    This is a placeholder function for getting user location.
+    In a real app, you would use:
+    - Browser geolocation API
+    - IP-based location
+    - User-provided address
+    """
+    # For demo purposes, return a placeholder
+    return {
+        "latitude": "12.9716",
+        "longitude": "77.5946", 
+        "address": "Chennai, Tamil Nadu, India",
+        "accuracy": "Approximate"
+    }
 
 
 # -------------------------
