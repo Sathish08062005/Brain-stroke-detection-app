@@ -6,7 +6,7 @@ import requests
 import os
 import gdown
 import tensorflow as tf
-import pil import image
+import PIL import image
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import matplotlib.pyplot as plt
