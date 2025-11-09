@@ -5,6 +5,8 @@ import json
 import requests
 import os
 import gdown
+import time
+import random
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import matplotlib.pyplot as plt
@@ -14,8 +16,7 @@ import pandas as pd
 import base64
 import time
 from datetime import datetime, timedelta
-import time
-import random
+
 
 # SIMPLE BACKGROUND FALLBACK
 try:
