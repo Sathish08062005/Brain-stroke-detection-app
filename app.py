@@ -451,78 +451,360 @@ def stroke_risk_calculator():
                 st.write("• Balanced diet")
 
 # -------------------------
-# NEW FEATURE 4: Progress Tracker
+# NEW FEATURE: Progress Tracker with Data Persistence
 # -------------------------
+PROGRESS_FILE = "progress_data.json"
+
+def save_progress_to_file():
+    try:
+        with open(PROGRESS_FILE, "w") as f:
+            json.dump(st.session_state.progress_data, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving progress data: {e}")
+
+def load_progress_from_file():
+    if os.path.exists(PROGRESS_FILE):
+        try:
+            with open(PROGRESS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
+
 def progress_tracker():
     st.title("📈 Recovery Progress Tracker")
-    st.write("Track your recovery journey and monitor improvements")
+    st.write("Track your recovery journey and monitor improvements over time")
     
-    tab1, tab2, tab3 = st.tabs(["🏋 Exercise Log", "📊 Progress Charts", "🎯 Goals"])
+    # Initialize progress data in session state
+    if "progress_data" not in st.session_state:
+        st.session_state.progress_data = load_progress_from_file()
     
+    tab1, tab2, tab3, tab4 = st.tabs(["🏋 Exercise Log", "📊 Progress Charts", "🎯 Goals & Milestones", "📋 My Progress History"])
+
+    # Tab 1: Exercise Log
     with tab1:
-        st.subheader("Daily Exercise Log")
-        with st.form("exercise_log"):
-            exercise_date = st.date_input("Date")
-            exercise_type = st.selectbox("Exercise Type", 
-                ["Walking", "Stretching", "Strength Training", "Balance Exercises", 
-                 "Speech Therapy", "Occupational Therapy", "Other"])
-            duration = st.number_input("Duration (minutes)", 1, 240, 30)
-            intensity = st.select_slider("Intensity", ["Very Light", "Light", "Moderate", "Hard", "Very Hard"])
-            notes = st.text_area("Notes / How you felt")
+        st.subheader("📝 Daily Exercise Log")
+        with st.form("exercise_log_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
             
-            if st.form_submit_button("💾 Log Exercise"):
+            with col1:
+                exercise_date = st.date_input("Date", value=datetime.now().date())
+                exercise_type = st.selectbox("Exercise Type", 
+                    ["Walking", "Stretching", "Strength Training", "Balance Exercises", 
+                     "Speech Therapy", "Occupational Therapy", "Arm Exercises", 
+                     "Leg Exercises", "Breathing Exercises", "Other"])
+                duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=30)
+                
+            with col2:
+                intensity = st.select_slider("Intensity Level", 
+                    options=["Very Light", "Light", "Moderate", "Hard", "Very Hard"],
+                    value="Moderate")
+                pain_level = st.slider("Pain Level (0-10)", 0, 10, 0)
+                energy_level = st.slider("Energy Level After (1-10)", 1, 10, 7)
+                
+            notes = st.text_area("Notes / How you felt", placeholder="Describe how the exercise went, any challenges, or improvements...")
+            
+            submitted = st.form_submit_button("💾 Save Exercise Log")
+            
+            if submitted:
                 exercise_data = {
+                    "id": len(st.session_state.progress_data) + 1,
+                    "type": "exercise",
                     "date": str(exercise_date),
-                    "type": exercise_type,
+                    "exercise_type": exercise_type,
                     "duration": duration,
                     "intensity": intensity,
+                    "pain_level": pain_level,
+                    "energy_level": energy_level,
                     "notes": notes,
                     "user": st.session_state.username,
-                    "logged_at": str(datetime.now())
+                    "timestamp": str(datetime.now())
                 }
-                if 'exercise_log' not in st.session_state:
-                    st.session_state.exercise_log = []
-                st.session_state.exercise_log.append(exercise_data)
-                st.success("Exercise logged successfully!")
-    
-    with tab2:
-        st.subheader("Progress Overview")
-        # Mock progress data
-        weeks = list(range(1, 9))
-        mobility = [30, 40, 50, 60, 65, 70, 75, 80]
-        speech = [40, 50, 55, 60, 65, 70, 75, 80]
-        cognition = [35, 45, 55, 60, 65, 70, 75, 80]
-        
-        progress_df = pd.DataFrame({
-            'Week': weeks,
-            'Mobility': mobility,
-            'Speech': speech,
-            'Cognition': cognition
-        })
-        
-        st.line_chart(progress_df.set_index('Week'))
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Mobility Improvement", "+50%", "25%")
-        with col2:
-            st.metric("Speech Clarity", "+40%", "20%")
-        with col3:
-            st.metric("Cognitive Function", "+45%", "22%")
-    
-    with tab3:
-        st.subheader("Set Recovery Goals")
-        with st.form("goal_setting"):
-            goal_type = st.selectbox("Goal Type", 
-                ["Mobility", "Speech", "Strength", "Balance", "Daily Living"])
-            goal_description = st.text_input("Goal Description")
-            target_date = st.date_input("Target Date")
-            priority = st.selectbox("Priority", ["Low", "Medium", "High"])
-            
-            if st.form_submit_button("🎯 Set Goal"):
-                st.success("Goal set successfully!")
+                st.session_state.progress_data.append(exercise_data)
+                save_progress_to_file()
+                st.success("✅ Exercise logged successfully!")
+                
+                # Show quick summary
+                st.info(f"*Logged:* {exercise_type} for {duration} minutes at {intensity.lower()} intensity")
 
-# -------------------------
+    # Tab 2: Progress Charts
+    with tab2:
+        st.subheader("📈 Progress Overview")
+        
+        # Filter user's progress data
+        user_progress = [p for p in st.session_state.progress_data if p.get("user") == st.session_state.username and p.get("type") == "exercise"]
+        
+        if not user_progress:
+            st.info("No exercise data yet. Start logging your exercises to see progress charts!")
+        else:
+            # Convert to DataFrame for easier analysis
+            progress_df = pd.DataFrame(user_progress)
+            progress_df['date'] = pd.to_datetime(progress_df['date'])
+            progress_df = progress_df.sort_values('date')
+            
+            # Weekly aggregates
+            progress_df['week'] = progress_df['date'].dt.isocalendar().week
+            weekly_data = progress_df.groupby('week').agg({
+                'duration': 'sum',
+                'pain_level': 'mean',
+                'energy_level': 'mean'
+            }).reset_index()
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                total_exercise_minutes = progress_df['duration'].sum()
+                st.metric("Total Exercise Minutes", f"{total_exercise_minutes} min")
+                
+            with col2:
+                avg_pain = progress_df['pain_level'].mean()
+                st.metric("Average Pain Level", f"{avg_pain:.1f}/10", delta="-0.5" if avg_pain < 5 else "+0.2")
+                
+            with col3:
+                avg_energy = progress_df['energy_level'].mean()
+                st.metric("Average Energy Level", f"{avg_energy:.1f}/10", delta="+1.2" if avg_energy > 6 else "-0.3")
+            
+            # Charts
+            st.subheader("Exercise Duration Over Time")
+            if len(progress_df) >= 2:
+                fig, ax = plt.subplots(figsize=(10, 4))
+                ax.plot(progress_df['date'], progress_df['duration'], marker='o', linewidth=2, markersize=4)
+                ax.set_xlabel('Date')
+                ax.set_ylabel('Duration (minutes)')
+                ax.set_title('Exercise Duration Trend')
+                ax.grid(True, alpha=0.3)
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
+            else:
+                st.info("Need more data points to show trends")
+            
+            # Exercise type distribution
+            st.subheader("Exercise Type Distribution")
+            exercise_counts = progress_df['exercise_type'].value_counts()
+            fig, ax = plt.subplots(figsize=(8, 6))
+            exercise_counts.plot(kind='pie', autopct='%1.1f%%', ax=ax)
+            ax.set_ylabel('')
+            ax.set_title('Types of Exercises Performed')
+            st.pyplot(fig)
+            
+            # Intensity and pain level analysis
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Intensity Distribution")
+                intensity_counts = progress_df['intensity'].value_counts()
+                st.bar_chart(intensity_counts)
+                
+            with col2:
+                st.subheader("Pain vs Energy Levels")
+                fig, ax = plt.subplots(figsize=(6, 4))
+                ax.scatter(progress_df['pain_level'], progress_df['energy_level'], alpha=0.6)
+                ax.set_xlabel('Pain Level')
+                ax.set_ylabel('Energy Level')
+                ax.set_title('Pain vs Energy Correlation')
+                ax.grid(True, alpha=0.3)
+                st.pyplot(fig)
+
+    # Tab 3: Goals & Milestones
+    with tab3:
+        st.subheader("🎯 Set Recovery Goals")
+        
+        # Initialize goals in session state
+        if "recovery_goals" not in st.session_state:
+            st.session_state.recovery_goals = []
+        
+        with st.form("goal_setting_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                goal_type = st.selectbox("Goal Category", 
+                    ["Mobility", "Speech", "Strength", "Balance", "Daily Living", "Endurance", "Flexibility"])
+                goal_description = st.text_input("Goal Description", 
+                    placeholder="e.g., Walk 1000 steps without assistance")
+                target_value = st.number_input("Target Value", min_value=1, value=10)
+                target_unit = st.text_input("Unit", placeholder="e.g., steps, minutes, days")
+                
+            with col2:
+                priority = st.selectbox("Priority Level", ["Low", "Medium", "High", "Critical"])
+                target_date = st.date_input("Target Completion Date", 
+                    value=datetime.now().date() + timedelta(days=30))
+                current_status = st.selectbox("Current Status", 
+                    ["Not Started", "In Progress", "Almost There", "Completed"])
+                
+            notes = st.text_area("Goal Notes", placeholder="Additional details about this goal...")
+            
+            submitted = st.form_submit_button("🎯 Set New Goal")
+            
+            if submitted:
+                if goal_description:
+                    new_goal = {
+                        "id": len(st.session_state.recovery_goals) + 1,
+                        "type": "goal",
+                        "goal_type": goal_type,
+                        "description": goal_description,
+                        "target_value": target_value,
+                        "target_unit": target_unit,
+                        "priority": priority,
+                        "target_date": str(target_date),
+                        "current_status": current_status,
+                        "notes": notes,
+                        "user": st.session_state.username,
+                        "created_date": str(datetime.now())
+                    }
+                    st.session_state.recovery_goals.append(new_goal)
+                    
+                    # Also save to progress data for persistence
+                    st.session_state.progress_data.append(new_goal)
+                    save_progress_to_file()
+                    
+                    st.success("✅ New goal set successfully!")
+                    st.balloons()
+                else:
+                    st.error("Please enter a goal description")
+        
+        # Display current goals
+        st.subheader("📋 Current Goals")
+        user_goals = [g for g in st.session_state.recovery_goals if g.get("user") == st.session_state.username]
+        
+        if not user_goals:
+            st.info("No goals set yet. Create your first recovery goal above!")
+        else:
+            for goal in user_goals:
+                with st.expander(f"🎯 {goal['description']} - {goal['current_status']}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"*Category:* {goal['goal_type']}")
+                        st.write(f"*Priority:* {goal['priority']}")
+                        st.write(f"*Target:* {goal['target_value']} {goal['target_unit']}")
+                        
+                    with col2:
+                        st.write(f"*Due Date:* {goal['target_date']}")
+                        st.write(f"*Status:* {goal['current_status']}")
+                        st.write(f"*Created:* {goal['created_date'][:10]}")
+                    
+                    if goal.get('notes'):
+                        st.write(f"*Notes:* {goal['notes']}")
+                    
+                    # Progress update section
+                    st.subheader("Update Progress")
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if st.button(f"Mark In Progress", key=f"progress_{goal['id']}"):
+                            goal['current_status'] = "In Progress"
+                            save_progress_to_file()
+                            st.success("Goal marked as In Progress!")
+                            st.rerun()
+                    
+                    with col2:
+                        if st.button(f"Mark Almost Done", key=f"almost_{goal['id']}"):
+                            goal['current_status'] = "Almost There"
+                            save_progress_to_file()
+                            st.success("Goal almost completed!")
+                            st.rerun()
+                    
+                    with col3:
+                        if st.button(f"🎉 Complete Goal", key=f"complete_{goal['id']}"):
+                            goal['current_status'] = "Completed"
+                            goal['completed_date'] = str(datetime.now())
+                            save_progress_to_file()
+                            st.success("🎉 Congratulations! Goal completed!")
+                            st.rerun()
+
+    # Tab 4: Progress History
+    with tab4:
+        st.subheader("📋 My Progress History")
+        
+        user_data = [p for p in st.session_state.progress_data if p.get("user") == st.session_state.username]
+        
+        if not user_data:
+            st.info("No progress data recorded yet. Start logging your exercises and goals!")
+        else:
+            # Filter options
+            col1, col2 = st.columns(2)
+            with col1:
+                filter_type = st.selectbox("Filter by Type", 
+                    ["All", "Exercises", "Goals"])
+            with col2:
+                sort_order = st.selectbox("Sort by", 
+                    ["Newest First", "Oldest First"])
+            
+            # Apply filters
+            filtered_data = user_data
+            if filter_type == "Exercises":
+                filtered_data = [d for d in user_data if d.get("type") == "exercise"]
+            elif filter_type == "Goals":
+                filtered_data = [d for d in user_data if d.get("type") == "goal"]
+            
+            # Apply sorting
+            if sort_order == "Newest First":
+                filtered_data.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+            else:
+                filtered_data.sort(key=lambda x: x.get('timestamp', ''))
+            
+            # Display items
+            for item in filtered_data:
+                if item.get("type") == "exercise":
+                    with st.expander(f"🏋 {item['exercise_type']} - {item['date']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"*Duration:* {item['duration']} minutes")
+                            st.write(f"*Intensity:* {item['intensity']}")
+                            st.write(f"*Pain Level:* {item['pain_level']}/10")
+                        with col2:
+                            st.write(f"*Energy Level:* {item['energy_level']}/10")
+                            st.write(f"*Logged:* {item['timestamp'][:16]}")
+                        if item.get('notes'):
+                            st.write(f"*Notes:* {item['notes']}")
+                
+                elif item.get("type") == "goal":
+                    status_emoji = "🎯" if item['current_status'] == "Not Started" else \
+                                 "🔄" if item['current_status'] == "In Progress" else \
+                                 "⚠" if item['current_status'] == "Almost There" else \
+                                 "✅"
+                    
+                    with st.expander(f"{status_emoji} {item['description']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"*Category:* {item['goal_type']}")
+                            st.write(f"*Priority:* {item['priority']}")
+                            st.write(f"*Target:* {item['target_value']} {item['target_unit']}")
+                        with col2:
+                            st.write(f"*Due Date:* {item['target_date']}")
+                            st.write(f"*Status:* {item['current_status']}")
+                            st.write(f"*Created:* {item['created_date'][:10]}")
+                        if item.get('notes'):
+                            st.write(f"*Notes:* {item['notes']}")
+            
+            # Export data option
+            st.subheader("📤 Export Progress Data")
+            if st.button("Download Progress Report (CSV)"):
+                if user_data:
+                    # Convert to DataFrame for export
+                    export_df = pd.DataFrame(user_data)
+                    csv = export_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download CSV",
+                        data=csv,
+                        file_name=f"recovery_progress_{st.session_state.username}_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.warning("No data available to export")
+
+# Don't forget to add this to your ensure_state() function:
+def ensure_state():
+    # ... existing code ...
+    if "progress_data" not in st.session_state:
+        st.session_state.progress_data = load_progress_from_file()
+    if "recovery_goals" not in st.session_state:
+        st.session_state.recovery_goals = []
+    # ... rest of existing code ...
+
+# And add the file persistence at the top with other file definitions:
+PROGRESS_FILE = "progress_data.json"# -------------------------
 # NEW FEATURE 5: Emergency SOS System
 # -------------------------
 def emergency_sos():
