@@ -1565,7 +1565,7 @@ def medication_reminder():
                     
                     if med.get('notes'):
                         st.info(f"**Notes:** {med['notes']}")
- -------------------------
+ 
 # NEW FEATURE 7: Cognitive Assessment & Memory Games
 # -------------------------
 def cognitive_assessment():
