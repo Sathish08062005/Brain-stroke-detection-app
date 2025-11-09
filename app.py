@@ -134,60 +134,6 @@ def load_symptoms_from_file():
         except Exception:
             return []
     return []
-def save_progress_to_file():
-    try:
-        with open(PROGRESS_FILE, "w") as f:
-            json.dump(st.session_state.progress_data, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving progress data: {e}")
-
-def load_progress_from_file():
-    if os.path.exists(PROGRESS_FILE):
-        try:
-            with open(PROGRESS_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
-        except Exception:
-            return []
-    return []
-
-def save_medication_reminders():
-    try:
-        with open(MEDICATION_REMINDERS_FILE, "w") as f:
-            json.dump(st.session_state.medication_reminders, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving medication reminders: {e}")
-
-def load_medication_reminders():
-    if os.path.exists(MEDICATION_REMINDERS_FILE):
-        try:
-            with open(MEDICATION_REMINDERS_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
-        except Exception:
-            return []
-    return []
-
-def save_cognitive_results():
-    try:
-        with open(COGNITIVE_RESULTS_FILE, "w") as f:
-            json.dump(st.session_state.cognitive_results, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving cognitive results: {e}")
-
-def load_cognitive_results():
-    if os.path.exists(COGNITIVE_RESULTS_FILE):
-        try:
-            with open(COGNITIVE_RESULTS_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
-        except Exception:
-            return []
-    return []
-
 
 # -------------------------
 # Page Config
@@ -1168,6 +1114,411 @@ def ensure_state():
 
 # And add the file persistence at the top with other file definitions:
 PROGRESS_FILE = "progress_data.json"# -------------------------
+# -------------------------
+# Medical Reminder Program
+# -------------------------
+MEDICATION_REMINDERS_FILE = "medication_reminders.json"
+
+def save_medication_reminders():
+    try:
+        with open(MEDICATION_REMINDERS_FILE, "w") as f:
+            json.dump(st.session_state.medication_reminders, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving medication reminders: {e}")
+
+def load_medication_reminders():
+    if os.path.exists(MEDICATION_REMINDERS_FILE):
+        try:
+            with open(MEDICATION_REMINDERS_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            return []
+    return []
+
+def medication_reminder():
+    st.title("💊 Smart Medication Reminder")
+    st.write("Never miss your medication with smart reminders and tracking")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["🕐 Set Reminders", "📋 Today's Medications", "📊 Compliance Tracking", "⚙ Manage Medications"])
+    
+    with tab1:
+        st.subheader("⏰ Set New Medication Reminder")
+        with st.form("reminder_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                med_name = st.text_input("Medication Name*", placeholder="e.g., Aspirin, Metformin")
+                dosage = st.text_input("Dosage*", placeholder="e.g., 75mg, 500mg")
+                medication_type = st.selectbox("Medication Type", 
+                    ["Tablet", "Capsule", "Liquid", "Injection", "Inhaler", "Cream", "Other"])
+                
+            with col2:
+                frequency = st.selectbox("Frequency*", 
+                    ["Once daily", "Twice daily", "Thrice daily", "Four times daily", 
+                     "Every 6 hours", "Every 8 hours", "Weekly", "As needed"])
+                start_date = st.date_input("Start Date*", value=datetime.now().date())
+                end_date = st.date_input("End Date (optional)", value=None)
+            
+            st.subheader("🕒 Reminder Schedule")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                reminder_times = []
+                if frequency == "Once daily":
+                    reminder_times.append(st.time_input("Reminder Time", value=datetime.now().time()))
+                elif frequency == "Twice daily":
+                    reminder_times.append(st.time_input("Morning Time", value=datetime.strptime("08:00", "%H:%M").time()))
+                    reminder_times.append(st.time_input("Evening Time", value=datetime.strptime("20:00", "%H:%M").time()))
+                elif frequency == "Thrice daily":
+                    reminder_times.append(st.time_input("Morning Time", value=datetime.strptime("08:00", "%H:%M").time()))
+                    reminder_times.append(st.time_input("Afternoon Time", value=datetime.strptime("14:00", "%H:%M").time()))
+                    reminder_times.append(st.time_input("Evening Time", value=datetime.strptime("20:00", "%H:%M").time()))
+                else:
+                    st.info("Reminders will be set based on frequency")
+            
+            with col2:
+                days_of_week = st.multiselect("Days to repeat*", 
+                    ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                    default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+                
+                reminder_type = st.selectbox("Reminder Type", 
+                    ["Popup Notification", "Sound Alert", "Vibration", "All"])
+            
+            st.subheader("📝 Additional Information")
+            instructions = st.text_area("Special Instructions", 
+                placeholder="e.g., Take with food, Avoid dairy products, Shake well before use...")
+            prescribed_by = st.text_input("Prescribed By Doctor", placeholder="Dr. Name")
+            pharmacy = st.text_input("Pharmacy Information", placeholder="Pharmacy name and contact")
+            
+            important_notes = st.text_area("Important Notes", 
+                placeholder="Any side effects to watch for, storage instructions, etc.")
+            
+            submitted = st.form_submit_button("💾 Save Medication Reminder")
+            
+            if submitted:
+                if med_name and dosage and days_of_week:
+                    reminder_data = {
+                        "id": len(st.session_state.medication_reminders) + 1,
+                        "medication": med_name,
+                        "dosage": dosage,
+                        "type": medication_type,
+                        "frequency": frequency,
+                        "reminder_times": [str(time) for time in reminder_times],
+                        "days": days_of_week,
+                        "start_date": str(start_date),
+                        "end_date": str(end_date) if end_date else None,
+                        "reminder_type": reminder_type,
+                        "instructions": instructions,
+                        "prescribed_by": prescribed_by,
+                        "pharmacy": pharmacy,
+                        "important_notes": important_notes,
+                        "user": st.session_state.username,
+                        "created": str(datetime.now()),
+                        "active": True,
+                        "total_taken": 0,
+                        "total_missed": 0
+                    }
+                    
+                    st.session_state.medication_reminders.append(reminder_data)
+                    save_medication_reminders()
+                    st.success("✅ Medication reminder set successfully!")
+                    st.balloons()
+                    
+                    # Show summary
+                    st.info(f"""
+                    *Reminder Summary:*
+                    - 💊 *Medication:* {med_name} {dosage}
+                    - 🕒 *Schedule:* {frequency}
+                    - 📅 *Days:* {', '.join(days_of_week)}
+                    - 🚀 *Status:* Active from {start_date}
+                    """)
+                else:
+                    st.error("Please fill in all required fields (marked with *)")
+    
+    with tab2:
+        st.subheader("💊 Today's Medication Schedule")
+        
+        # Get today's medications
+        today = datetime.now().strftime("%A")
+        today_date = datetime.now().date()
+        
+        user_meds = [m for m in st.session_state.medication_reminders 
+                    if m.get('user') == st.session_state.username and m.get('active', True)]
+        
+        today_meds = [m for m in user_meds if today in m.get('days', [])]
+        
+        if not today_meds:
+            st.success("🎉 No medications scheduled for today! Enjoy your day!")
+        else:
+            st.info(f"You have {len(today_meds)} medication(s) scheduled for today")
+            
+            # Sort medications by time
+            today_meds.sort(key=lambda x: x.get('reminder_times', [''])[0] if x.get('reminder_times') else '')
+            
+            for i, med in enumerate(today_meds):
+                # Check if already taken today
+                taken_today = any(
+                    log.get('medication_id') == med['id'] and 
+                    log.get('timestamp', '').startswith(str(today_date)) and
+                    log.get('status') == 'taken'
+                    for log in st.session_state.medication_log
+                )
+                
+                status_color = "✅" if taken_today else "⏰"
+                status_text = "Taken" if taken_today else "Pending"
+                card_color = "success" if taken_today else "warning"
+                
+                with st.expander(f"{status_color} {med['medication']} - {med['dosage']} ({status_text})", expanded=not taken_today):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"*Type:* {med['type']}")
+                        st.write(f"*Frequency:* {med['frequency']}")
+                        if med.get('reminder_times'):
+                            st.write(f"*Times:* {', '.join([t[:5] for t in med['reminder_times']])}")
+                        st.write(f"*Days:* {', '.join(med['days'])}")
+                        
+                    with col2:
+                        st.write(f"*Prescribed by:* {med.get('prescribed_by', 'Not specified')}")
+                        st.write(f"*Compliance:* {med.get('total_taken', 0)} taken / {med.get('total_missed', 0)} missed")
+                        
+                        if not taken_today:
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                if st.button(f"✅ Taken", key=f"taken_{med['id']}", use_container_width=True):
+                                    # Log medication taken
+                                    st.session_state.medication_log.append({
+                                        "medication_id": med['id'],
+                                        "medication": med['medication'],
+                                        "dosage": med['dosage'],
+                                        "timestamp": str(datetime.now()),
+                                        "status": "taken",
+                                        "user": st.session_state.username
+                                    })
+                                    # Update medication stats
+                                    for m in st.session_state.medication_reminders:
+                                        if m['id'] == med['id']:
+                                            m['total_taken'] = m.get('total_taken', 0) + 1
+                                    save_medication_reminders()
+                                    st.success(f"✅ {med['medication']} marked as taken!")
+                                    st.rerun()
+                            
+                            with col_btn2:
+                                if st.button(f"❌ Missed", key=f"missed_{med['id']}", use_container_width=True):
+                                    st.session_state.medication_log.append({
+                                        "medication_id": med['id'],
+                                        "medication": med['medication'],
+                                        "dosage": med['dosage'],
+                                        "timestamp": str(datetime.now()),
+                                        "status": "missed",
+                                        "user": st.session_state.username
+                                    })
+                                    # Update medication stats
+                                    for m in st.session_state.medication_reminders:
+                                        if m['id'] == med['id']:
+                                            m['total_missed'] = m.get('total_missed', 0) + 1
+                                    save_medication_reminders()
+                                    st.warning(f"❌ {med['medication']} marked as missed.")
+                                    st.rerun()
+                        else:
+                            st.success("*Already taken today!* ✅")
+                            taken_time = next(
+                                (log['timestamp'] for log in st.session_state.medication_log 
+                                 if log.get('medication_id') == med['id'] and 
+                                 log.get('timestamp', '').startswith(str(today_date)) and
+                                 log.get('status') == 'taken'),
+                                "Today"
+                            )
+                            st.write(f"*Taken at:* {taken_time[11:16]}")
+                    
+                    # Additional information
+                    if med.get('instructions'):
+                        st.info(f"*Instructions:* {med['instructions']}")
+                    
+                    if med.get('important_notes'):
+                        st.warning(f"*Important Notes:* {med['important_notes']}")
+            
+            # Today's summary
+            st.subheader("📈 Today's Summary")
+            taken_today = len([log for log in st.session_state.medication_log 
+                             if log.get('timestamp', '').startswith(str(today_date)) and 
+                             log.get('status') == 'taken' and
+                             log.get('user') == st.session_state.username])
+            
+            missed_today = len([log for log in st.session_state.medication_log 
+                              if log.get('timestamp', '').startswith(str(today_date)) and 
+                              log.get('status') == 'missed' and
+                              log.get('user') == st.session_state.username])
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Scheduled", len(today_meds))
+            with col2:
+                st.metric("Taken", taken_today, f"+{taken_today}")
+            with col3:
+                st.metric("Missed", missed_today, f"+{missed_today}")
+    
+    with tab3:
+        st.subheader("📊 Medication Compliance Analytics")
+        
+        # Calculate compliance metrics
+        user_meds = [m for m in st.session_state.medication_reminders 
+                    if m.get('user') == st.session_state.username]
+        user_logs = [log for log in st.session_state.medication_log 
+                    if log.get('user') == st.session_state.username]
+        
+        total_medications = len(user_meds)
+        total_taken = len([log for log in user_logs if log.get('status') == 'taken'])
+        total_missed = len([log for log in user_logs if log.get('status') == 'missed'])
+        
+        total_actions = total_taken + total_missed
+        overall_compliance = (total_taken / total_actions * 100) if total_actions > 0 else 0
+        
+        # Weekly compliance (last 7 days)
+        week_ago = datetime.now().date() - timedelta(days=7)
+        recent_logs = [log for log in user_logs 
+                      if datetime.strptime(log['timestamp'][:10], '%Y-%m-%d').date() >= week_ago]
+        
+        recent_taken = len([log for log in recent_logs if log.get('status') == 'taken'])
+        recent_missed = len([log for log in recent_logs if log.get('status') == 'missed'])
+        recent_total = recent_taken + recent_missed
+        weekly_compliance = (recent_taken / recent_total * 100) if recent_total > 0 else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Active Medications", total_medications)
+        with col2:
+            st.metric("Overall Compliance", f"{overall_compliance:.1f}%", 
+                     f"{weekly_compliance - overall_compliance:+.1f}%")
+        with col3:
+            st.metric("Weekly Compliance", f"{weekly_compliance:.1f}%", "5.2%")
+        with col4:
+            st.metric("Total Taken", total_taken, f"+{recent_taken}")
+        
+        # Compliance trends chart
+        st.subheader("📅 Weekly Compliance Trend")
+        
+        # Generate last 7 days data
+        days = []
+        compliance_rates = []
+        
+        for i in range(7):
+            day = datetime.now().date() - timedelta(days=6-i)
+            day_logs = [log for log in user_logs 
+                       if log['timestamp'].startswith(str(day))]
+            day_taken = len([log for log in day_logs if log.get('status') == 'taken'])
+            day_total = len(day_logs)
+            day_compliance = (day_taken / day_total * 100) if day_total > 0 else 0
+            
+            days.append(day.strftime("%a"))
+            compliance_rates.append(day_compliance)
+        
+        chart_data = pd.DataFrame({
+            'Day': days,
+            'Compliance %': compliance_rates
+        })
+        
+        st.bar_chart(chart_data.set_index('Day'))
+        
+        # Medication-specific compliance
+        st.subheader("💊 Medication-wise Compliance")
+        
+        if user_meds:
+            for med in user_meds:
+                med_taken = med.get('total_taken', 0)
+                med_missed = med.get('total_missed', 0)
+                med_total = med_taken + med_missed
+                med_compliance = (med_taken / med_total * 100) if med_total > 0 else 0
+                
+                col1, col2, col3 = st.columns([3, 2, 1])
+                with col1:
+                    st.write(f"{med['medication']}** {med['dosage']}")
+                with col2:
+                    st.progress(med_compliance/100, text=f"{med_compliance:.1f}%")
+                with col3:
+                    st.write(f"{med_taken}/{med_total}")
+        else:
+            st.info("No medications tracked yet. Add some medications to see analytics!")
+    
+    with tab4:
+        st.subheader("⚙ Manage Your Medications")
+        
+        user_meds = [m for m in st.session_state.medication_reminders 
+                    if m.get('user') == st.session_state.username]
+        
+        if not user_meds:
+            st.info("No medications added yet. Set up your first medication reminder!")
+        else:
+            st.write(f"*Total medications:* {len(user_meds)}")
+            
+            for i, med in enumerate(user_meds):
+                status = "🟢 Active" if med.get('active', True) else "🔴 Inactive"
+                
+                with st.expander(f"{status} - {med['medication']} {med['dosage']}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"*Type:* {med['type']}")
+                        st.write(f"*Frequency:* {med['frequency']}")
+                        st.write(f"*Schedule:* {', '.join(med['days'])}")
+                        if med.get('reminder_times'):
+                            st.write(f"*Times:* {', '.join([t[:5] for t in med['reminder_times']])}")
+                        
+                    with col2:
+                        st.write(f"*Start Date:* {med['start_date']}")
+                        if med.get('end_date'):
+                            st.write(f"*End Date:* {med['end_date']}")
+                        st.write(f"*Compliance:* {med.get('total_taken', 0)} taken / {med.get('total_missed', 0)} missed")
+                        st.write(f"*Prescribed by:* {med.get('prescribed_by', 'Not specified')}")
+                    
+                    # Action buttons
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if med.get('active', True):
+                            if st.button(f"⏸ Pause", key=f"pause_{med['id']}", use_container_width=True):
+                                st.session_state.medication_reminders[i]['active'] = False
+                                save_medication_reminders()
+                                st.success(f"⏸ {med['medication']} reminders paused")
+                                st.rerun()
+                        else:
+                            if st.button(f"▶ Resume", key=f"resume_{med['id']}", use_container_width=True):
+                                st.session_state.medication_reminders[i]['active'] = True
+                                save_medication_reminders()
+                                st.success(f"▶ {med['medication']} reminders resumed")
+                                st.rerun()
+                    
+                    with col2:
+                        if st.button(f"✏ Edit", key=f"edit_{med['id']}", use_container_width=True):
+                            st.info("Edit functionality coming soon!")
+                    
+                    with col3:
+                        if st.button(f"🗑 Delete", key=f"delete_{med['id']}", use_container_width=True):
+                            st.session_state.medication_reminders.pop(i)
+                            save_medication_reminders()
+                            st.success(f"🗑 {med['medication']} deleted successfully!")
+                            st.rerun()
+                    
+                    # Show additional information if available
+                    if med.get('instructions'):
+                        st.info(f"*Instructions:* {med['instructions']}")
+                    
+                    if med.get('important_notes'):
+                        st.warning(f"*Important Notes:* {med['important_notes']}")
+
+# Add this to your ensure_state() function:
+def ensure_state():
+    # ... existing code ...
+    if "medication_reminders" not in st.session_state:
+        st.session_state.medication_reminders = load_medication_reminders()
+    if "medication_log" not in st.session_state:
+        st.session_state.medication_log = []
+    # ... rest of existing code ...
+
+# Add the file definition at top with other files:
+MEDICATION_REMINDERS_FILE = "medication_reminders.json"
 # NEW FEATURE 5: Emergency SOS System
 # -------------------------
 def emergency_sos():
@@ -1411,163 +1762,6 @@ def get_user_location():
         "address": "Chennai, Tamil Nadu, India",
         "accuracy": "Approximate"
     }
-
-# -------------------------
-# NEW FEATURE 6: Medication Reminder & Compliance Tracker
-# -------------------------
-def medication_reminder():
-    st.title("💊 Smart Medication Reminder")
-    st.write("Set reminders and track medication compliance")
-    
-    tab1, tab2, tab3 = st.tabs(["🕐 Set Reminders", "📊 Compliance Tracking", "📋 Medication List"])
-    
-    with tab1:
-        st.subheader("⏰ Set Medication Reminders")
-        with st.form("reminder_form", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                med_name = st.text_input("Medication Name", placeholder="e.g., Aspirin")
-                dosage = st.text_input("Dosage", placeholder="e.g., 75mg")
-                frequency = st.selectbox("Frequency", 
-                    ["Once daily", "Twice daily", "Thrice daily", "Four times daily", 
-                     "Every 6 hours", "Every 8 hours", "Weekly", "As needed"])
-                
-            with col2:
-                reminder_time = st.time_input("Reminder Time", value=datetime.now().time())
-                start_date = st.date_input("Start Date", value=datetime.now().date())
-                end_date = st.date_input("End Date (optional)", value=None)
-            
-            days_of_week = st.multiselect("Days to repeat", 
-                ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-                default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
-            
-            notes = st.text_area("Additional Notes", placeholder="Any special instructions...")
-            
-            submitted = st.form_submit_button("💾 Save Reminder")
-            
-            if submitted:
-                if med_name and dosage:
-                    reminder_data = {
-                        "id": len(st.session_state.medication_reminders) + 1,
-                        "medication": med_name,
-                        "dosage": dosage,
-                        "frequency": frequency,
-                        "time": str(reminder_time),
-                        "days": days_of_week,
-                        "start_date": str(start_date),
-                        "end_date": str(end_date) if end_date else None,
-                        "notes": notes,
-                        "user": st.session_state.username,
-                        "created": str(datetime.now()),
-                        "active": True
-                    }
-                    
-                    st.session_state.medication_reminders.append(reminder_data)
-                    save_medication_reminders()
-                    st.success("✅ Reminder set successfully!")
-                    st.balloons()
-                else:
-                    st.error("Please enter medication name and dosage")
-    
-    with tab2:
-        st.subheader("📈 Medication Compliance")
-        
-        # Calculate compliance metrics
-        total_medications = len([m for m in st.session_state.medication_reminders if m.get('user') == st.session_state.username])
-        taken_count = len([m for m in st.session_state.medication_log if m.get('user') == st.session_state.username and m.get('status') == 'taken'])
-        missed_count = len([m for m in st.session_state.medication_log if m.get('user') == st.session_state.username and m.get('status') == 'missed'])
-        
-        total_actions = taken_count + missed_count
-        compliance_rate = (taken_count / total_actions * 100) if total_actions > 0 else 0
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Active Medications", total_medications)
-        with col2:
-            st.metric("This Week", f"{compliance_rate:.1f}%", "5%")
-        with col3:
-            st.metric("Taken", taken_count, "3%")
-        with col4:
-            st.metric("Missed", missed_count, "-1%")
-        
-        # Weekly compliance chart
-        st.subheader("📅 Weekly Compliance")
-        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        compliance_data = [85, 90, 78, 92, 88, 75, 80]  # Mock data
-        
-        chart_data = pd.DataFrame({
-            'Day': days,
-            'Compliance %': compliance_data
-        })
-        
-        st.bar_chart(chart_data.set_index('Day'))
-    
-    with tab3:
-        st.subheader("💊 Today's Medications")
-        
-        # Get today's medications
-        today = datetime.now().strftime("%A")
-        user_meds = [m for m in st.session_state.medication_reminders 
-                    if m.get('user') == st.session_state.username and m.get('active', True)]
-        
-        today_meds = [m for m in user_meds if today in m.get('days', [])]
-        
-        if not today_meds:
-            st.info("No medications scheduled for today. Enjoy your day! 🎉")
-        else:
-            st.info(f"You have {len(today_meds)} medication(s) scheduled for today")
-            
-            for i, med in enumerate(today_meds):
-                # Check if already taken today
-                taken_today = any(
-                    log.get('medication') == med['medication'] and 
-                    log.get('timestamp', '').startswith(str(datetime.now().date())) and
-                    log.get('status') == 'taken'
-                    for log in st.session_state.medication_log
-                )
-                
-                status_color = "✅" if taken_today else "⏰"
-                status_text = "Taken" if taken_today else "Pending"
-                
-                with st.expander(f"{status_color} {med['medication']} - {med['dosage']} ({status_text})"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**Time:** {med['time'][:5]}")
-                        st.write(f"**Frequency:** {med['frequency']}")
-                        st.write(f"**Days:** {', '.join(med['days'])}")
-                    with col2:
-                        if not taken_today:
-                            if st.button(f"✅ Mark as Taken", key=f"taken_{i}", use_container_width=True):
-                                # Log medication taken
-                                st.session_state.medication_log.append({
-                                    "medication": med['medication'],
-                                    "dosage": med['dosage'],
-                                    "timestamp": str(datetime.now()),
-                                    "status": "taken",
-                                    "user": st.session_state.username
-                                })
-                                st.success(f"✅ {med['medication']} marked as taken!")
-                                st.rerun()
-                            
-                            if st.button(f"❌ Mark as Missed", key=f"missed_{i}", use_container_width=True):
-                                st.session_state.medication_log.append({
-                                    "medication": med['medication'],
-                                    "dosage": med['dosage'],
-                                    "timestamp": str(datetime.now()),
-                                    "status": "missed",
-                                    "user": st.session_state.username
-                                })
-                                st.warning(f"❌ {med['medication']} marked as missed.")
-                                st.rerun()
-                        else:
-                            st.success("Already taken today! ✅")
-                    
-                    if med.get('notes'):
-                        st.info(f"**Notes:** {med['notes']}")
- 
-
-
 
 
 # -------------------------
