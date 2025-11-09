@@ -972,27 +972,7 @@ def import_users_json(file_bytes):
 def render_login():
     st.title("🔐 Login Portal")
     
-    # Display default users information
-    with st.expander("ℹ Default Login Credentials"):
-        st.write("*Admin Account:*")
-        st.write("- Username: Sathish")
-        st.write("- Password: Praveenasathish")
-        st.write("*User Account:*")
-        st.write("- Username: ziva")
-        st.write("- Password: ziva123")
-    
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
-    colA, colB = st.columns([1, 1])
-    with colA:
-        if st.button("Login", use_container_width=True, key="login_btn"):
-            if login(username, password):
-                st.success("Login successful ✅")
-                st.rerun()
-            else:
-                st.error("❌ Invalid Username or Password")
-    with colB:
-        st.caption("No registration here. Users must be created by the admin.")
+
 
 # -------------------------
 # Admin Dashboard
