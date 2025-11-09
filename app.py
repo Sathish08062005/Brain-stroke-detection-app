@@ -971,6 +971,18 @@ def import_users_json(file_bytes):
 # -------------------------
 def render_login():
     st.title("🔐 Login Portal")
+    username = st.text_input("Username", key="login_username")
+    password = st.text_input("Password", type="password", key="login_password")
+    colA, colB = st.columns([1, 1])
+    with colA:
+        if st.button("Login", use_container_width=True, key="login_btn"):
+            if login(username, password):
+                st.success("Login successful ✅")
+                st.rerun()
+            else:
+                st.error("❌ Invalid Username or Password")
+    with colB:
+        st.caption("No registration here. Users must be created by the admin.")
     
 
 
