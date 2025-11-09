@@ -996,8 +996,6 @@ def render_admin_dashboard():
     with tabs[5]:
         population_analytics()
 
-    with tabs[6]:
-        nutrition_planner()
 
     st.divider()
     st.subheader("📝 Recently Sent Reports")
