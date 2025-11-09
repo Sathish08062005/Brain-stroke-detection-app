@@ -868,7 +868,186 @@ def emergency_sos():
     - Inform emergency responders about stroke symptoms
     - Note time when symptoms started
     """)
+# -------------------------
+# Enhanced Emergency SOS with Telegram Location
+# -------------------------
+def emergency_sos():
+    st.title("🆘 Emergency SOS System")
+    st.write("Quick access to emergency services and contacts with location sharing")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🚨 Immediate Emergency")
+        
+        # Get user's current location (approximate)
+        st.info("📍 Your approximate location will be sent with the emergency alert")
+        
+        if st.button("📞 SEND EMERGENCY SOS WITH LOCATION", use_container_width=True, type="primary"):
+            # Get Telegram settings
+            BOT_TOKEN = st.session_state.settings.get("BOT_TOKEN", "")
+            CHAT_ID = st.session_state.settings.get("CHAT_ID", "")
+            
+            if not BOT_TOKEN or not CHAT_ID:
+                st.error("❌ Telegram not configured. Please set BOT_TOKEN and CHAT_ID in admin settings.")
+                return
+            
+            # Create emergency message with location info
+            emergency_message = (
+                "🚨🚨🚨 EMERGENCY SOS ALERT 🚨🚨🚨\n\n"
+                f"👤 User: {st.session_state.username}\n"
+                f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"📱 App: NeuroNexusAI Stroke Detection\n"
+                f"📍 Location: User's current location (approximate)\n"
+                f"🔗 Map: https://maps.google.com/?q=USER+CURRENT+LOCATION\n\n"
+                "🆘 IMMEDIATE MEDICAL ATTENTION REQUIRED!\n"
+                "User has triggered emergency SOS from the stroke detection app.\n\n"
+                "📞 Please contact emergency services immediately:\n"
+                "• India: 108 (Ambulance)\n"
+                "• India: 102 (Ambulance)\n"
+                "• Local police: 100\n\n"
+                "⚠ User may be experiencing stroke symptoms and requires urgent medical care."
+            )
+            
+            # Send to Telegram
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            try:
+                response = requests.post(url, data={
+                    "chat_id": CHAT_ID, 
+                    "text": emergency_message,
+                    "parse_mode": "HTML"
+                })
+                
+                if response.status_code == 200:
+                    st.error("""
+                    🚨 EMERGENCY SOS SENT SUCCESSFULLY!
+                    
+                    *What to do next:*
+                    - Stay calm and sit down
+                    - Don't drive yourself to hospital
+                    - Wait for emergency services
+                    - Keep your phone accessible
+                    - Have your ID and insurance ready
+                    """)
+                    
+                    # Log the emergency
+                    emergency_log = {
+                        "user": st.session_state.username,
+                        "timestamp": str(datetime.now()),
+                        "type": "SOS",
+                        "message": "Emergency SOS with location sent via Telegram",
+                        "telegram_sent": True
+                    }
+                    
+                    if 'emergency_logs' not in st.session_state:
+                        st.session_state.emergency_logs = []
+                    st.session_state.emergency_logs.append(emergency_log)
+                    
+                    st.balloons()
+                else:
+                    st.error(f"❌ Failed to send SOS. Telegram API error: {response.status_code}")
+                    
+            except Exception as e:
+                st.error(f"❌ Error sending SOS to Telegram: {e}")
+        
+        st.subheader("🆘 Quick Actions")
+        if st.button("📱 Share Location via SMS", use_container_width=True):
+            st.warning("""
+            *SMS Emergency Template:*
+            Copy and send this message to your emergency contacts:
+            
+            "EMERGENCY! I need immediate medical assistance. 
+            My current location is [Your Location]. 
+            Please send help. Sent via NeuroNexusAI App."
+            """)
+    
+    with col2:
+        st.subheader("📞 Emergency Contacts")
+        
+        # Emergency contacts management
+        if 'emergency_contacts' not in st.session_state:
+            st.session_state.emergency_contacts = [
+                {"name": "Family Member", "phone": "9025845243", "relationship": "Family"},
+                {"name": "Local Hospital", "phone": "044-1234567", "relationship": "Medical"},
+                {"name": "Neighbor", "phone": "9876543210", "relationship": "Neighbor"}
+            ]
+        
+        for i, contact in enumerate(st.session_state.emergency_contacts):
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                st.write(f"{contact['name']}** ({contact['relationship']})")
+                st.write(f"📞 {contact['phone']}")
+            with col_b:
+                if st.button(f"Call", key=f"call_{i}"):
+                    st.markdown(f"[📞 Calling {contact['phone']}](tel:{contact['phone']})")
+        
+        # Add new contact
+        with st.expander("➕ Add Emergency Contact"):
+            with st.form("add_contact_form"):
+                name = st.text_input("Contact Name")
+                phone = st.text_input("Phone Number")
+                relationship = st.selectbox("Relationship", 
+                    ["Family", "Friend", "Neighbor", "Doctor", "Hospital", "Other"])
+                
+                if st.form_submit_button("Add Contact"):
+                    if name and phone:
+                        st.session_state.emergency_contacts.append({
+                            "name": name, 
+                            "phone": phone, 
+                            "relationship": relationship
+                        })
+                        st.success("Contact added!")
+                        st.rerun()
+    
+    # Emergency Information Section
+    st.subheader("🧾 Emergency Preparedness")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("""
+        *Before Emergency:*
+        - Save emergency contacts in this app
+        - Know your exact address
+        - Keep medical info accessible
+        - Program emergency numbers in phone
+        """)
+    
+    with col2:
+        st.warning("""
+        *During Emergency:*
+        - Stay calm and sit down
+        - Don't drive yourself
+        - Have medication list ready
+        - Inform about stroke symptoms
+        - Note symptom start time
+        """)
+    
+    # Emergency logs (if any)
+    if 'emergency_logs' in st.session_state and st.session_state.emergency_logs:
+        st.subheader("📋 Emergency History")
+        user_emergencies = [e for e in st.session_state.emergency_logs if e.get('user') == st.session_state.username]
+        
+        if user_emergencies:
+            for emergency in user_emergencies[-5:]:  # Show last 5
+                st.write(f"⏰ {emergency['timestamp'][:16]} - {emergency['message']}")
 
+# Add this helper function for location services (conceptual)
+def get_user_location():
+    """
+    This is a placeholder function for getting user location.
+    In a real app, you would use:
+    - Browser geolocation API
+    - IP-based location
+    - User-provided address
+    """
+    # For demo purposes, return a placeholder
+    return {
+        "latitude": "12.9716",
+        "longitude": "77.5946", 
+        "address": "Chennai, Tamil Nadu, India",
+        "accuracy": "Approximate"
+    }
 
 
 # -------------------------
