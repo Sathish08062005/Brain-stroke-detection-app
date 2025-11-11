@@ -17,6 +17,36 @@ import base64
 import time
 from datetime import datetime, timedelta
 
+================== FRONTEND FONT SETTINGS ==================
+st.markdown("""
+<style>
+/* Change all text in the app */
+* {
+    font-family: 'Arial', sans-serif !important;
+}
+/* Main app container */
+.stApp {
+    font-family: 'Arial', sans-serif;
+}
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Georgia', serif !important;
+}
+/* Sidebar */
+.css-1d391kg, .css-1lcbmhc {
+    font-family: 'Arial', sans-serif !important;
+}
+/* Buttons and inputs */
+.stButton>button, .stTextInput>div>div>input, .stSelectbox>div>div>select {
+    font-family: 'Arial', sans-serif !important;
+}
+</style>
+""", unsafe_allow_html=True)
+# ================== BACKEND FONT SETTINGS ==================
+plt.rcParams['font.family'] = 'Arial'
+plt.rcParams['font.size'] = 12
+sns.set(font='Arial')
+sns.set_style("whitegrid", {'font.family': 'Arial', 'font.size': 12}
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -2763,7 +2793,7 @@ else:
         render_user_app()
 
 # -------------------------
-# Footer with "created by Sathish" 
+# Footer with "created by Sathish"
 # -------------------------
 st.markdown(
     """
