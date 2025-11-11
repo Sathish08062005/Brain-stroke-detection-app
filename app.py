@@ -45,7 +45,7 @@ h1, h2, h3, h4, h5, h6 {
 plt.rcParams['font.family'] = 'Arial'
 plt.rcParams['font.size'] = 12
 sns.set(font='Arial')
-sns.set_style("whitegrid", {'font.family': 'Arial', 'font.size': 12}
+sns.set_style("whitegrid", {'font.family': 'Arial', 'font.size': 12})
 
 # SIMPLE BACKGROUND FALLBACK
 try:
