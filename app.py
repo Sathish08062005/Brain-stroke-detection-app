@@ -22,11 +22,11 @@ st.markdown("""
 <style>
 /* Change all text in the app */
 * {
-    font-family: 'Nyala', sans-serif !important;
+    font-family: 'arial', sans-serif !important;
 }
 /* Main app container */
 .stApp {
-    font-family: 'Nyala', sans-serif;
+    font-family: 'arial', sans-serif;
 }
 /* Headers */
 h1, h2, h3, h4, h5, h6 {
@@ -34,20 +34,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 /* Sidebar */
 .css-1d391kg, .css-1lcbmhc {
-    font-family: 'Nyala', sans-serif !important;
+    font-family: 'arial', sans-serif !important;
 }
 /* Buttons and inputs */
 .stButton>button, .stTextInput>div>div>input, .stSelectbox>div>div>select {
-    font-family: 'Nyala', sans-serif !important;
+    font-family: 'arial', sans-serif !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ================== BACKEND FONT SETTINGS ==================
-plt.rcParams['font.family'] = 'Nyala'
+plt.rcParams['font.family'] = 'arial'
 plt.rcParams['font.size'] = 12
-sns.set(font='Nyala')
-sns.set_style("whitegrid", {'font.family': 'Nyala', 'font.size': 12})
+sns.set(font='arial')
+sns.set_style("whitegrid", {'font.family': 'arial', 'font.size': 12})
 
 
 # SIMPLE BACKGROUND FALLBACK
