@@ -17,35 +17,6 @@ import base64
 import time
 from datetime import datetime, timedelta
 
-st.markdown("""
-<style>
-/* Change all text in the app */
-* {
-    font-family: 'nyala', sans-serif !important;
-}
-/* Main app container */
-.stApp {
-    font-family: 'nyala', sans-serif;
-}
-/* Headers */
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Georgia', serif !important;
-}
-/* Sidebar */
-.css-1d391kg, .css-1lcbmhc {
-    font-family: 'nyala', sans-serif !important;
-}
-/* Buttons and inputs */
-.stButton>button, .stTextInput>div>div>input, .stSelectbox>div>div>select {
-    font-family: 'nyala', sans-serif !important;
-}
-</style>
-""", unsafe_allow_html=True)
-# ================== BACKEND FONT SETTINGS ==================
-plt.rcParams['font.family'] = 'nyala'
-plt.rcParams['font.size'] = 12
-sns.set(font='nyala')
-sns.set_style("whitegrid", {'font.family': 'nyala', 'font.size': 12})
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -368,7 +339,313 @@ def medication_tracker():
                     st.rerun()
                 else:
                     st.error("Please fill in medication name and dosage")
+# -------------------------
+# Medication Reminder & Compliance Tracker
+# -------------------------
+def medication_reminder():
+    st.title("💊 Smart Medication Reminder")
+    st.write("Set reminders and track medication compliance")
+    
+    tab1, tab2, tab3 = st.tabs(["🕐 Set Reminders", "📊 Compliance Tracking", "📋 Medication List"])
+    
+    with tab1:
+        st.subheader("⏰ Set Medication Reminders")
+        with st.form("reminder_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                med_name = st.text_input("Medication Name")
+                dosage = st.text_input("Dosage")
+                frequency = st.selectbox("Frequency", 
+                    ["Once daily", "Twice daily", "Thrice daily", "Four times daily", 
+                     "Every 6 hours", "Every 8 hours", "Weekly", "As needed"])
+                
+            with col2:
+                reminder_time = st.time_input("Reminder Time")
+                start_date = st.date_input("Start Date")
+                end_date = st.date_input("End Date (optional)")
+            
+            days_of_week = st.multiselect("Days to repeat", 
+                ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+            
+            if st.form_submit_button("💾 Save Reminder"):
+                reminder_data = {
+                    "medication": med_name,
+                    "dosage": dosage,
+                    "frequency": frequency,
+                    "time": str(reminder_time),
+                    "days": days_of_week,
+                    "start_date": str(start_date),
+                    "end_date": str(end_date) if end_date else None,
+                    "user": st.session_state.username,
+                    "created": str(datetime.now())
+                }
+                
+                if 'medication_reminders' not in st.session_state:
+                    st.session_state.medication_reminders = []
+                st.session_state.medication_reminders.append(reminder_data)
+                st.success("✅ Reminder set successfully!")
+    
+    with tab2:
+        st.subheader("📈 Medication Compliance")
+        
+        # Mock compliance data
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("This Week", "85%", "5%")
+        with col2:
+            st.metric("This Month", "78%", "-2%")
+        with col3:
+            st.metric("On Time", "92%", "3%")
+        with col4:
+            st.metric("Missed", "8%", "-1%")
+        
+        # Compliance calendar
+        st.subheader("📅 This Month's Compliance")
+        # Simple calendar view
+        today = datetime.now().date()
+        days_in_month = 30
+        compliance_data = []
+        
+        for day in range(1, days_in_month + 1):
+            status = "taken" if day % 7 != 0 else "missed"  # Mock data
+            compliance_data.append({"day": day, "status": status})
+        
+        # Display as colored boxes
+        cols = st.columns(10)
+        for i, day_data in enumerate(compliance_data[:10]):  # Show first 10 days
+            with cols[i % 10]:
+                if day_data['status'] == 'taken':
+                    st.success(f"{day_data['day']}")
+                else:
+                    st.error(f"{day_data['day']}")
+    
+    with tab3:
+        st.subheader("💊 Today's Medications")
+        
+        # Get today's medications
+        today = datetime.now().strftime("%A")
+        if 'medication_reminders' in st.session_state:
+            today_meds = [m for m in st.session_state.medication_reminders 
+                         if today in m.get('days', []) and m.get('user') == st.session_state.username]
+            
+            if not today_meds:
+                st.info("No medications scheduled for today.")
+            else:
+                for i, med in enumerate(today_meds):
+                    with st.expander(f"💊 {med['medication']} - {med['dosage']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"*Time:* {med['time']}")
+                            st.write(f"*Frequency:* {med['frequency']}")
+                        with col2:
+                            if st.button(f"✅ Taken", key=f"taken_{i}"):
+                                # Log medication taken
+                                if 'medication_log' not in st.session_state:
+                                    st.session_state.medication_log = []
+                                st.session_state.medication_log.append({
+                                    "medication": med['medication'],
+                                    "timestamp": str(datetime.now()),
+                                    "status": "taken",
+                                    "user": st.session_state.username
+                                })
+                                st.success("Medication recorded as taken!")
+                                st.rerun()
+                            
+                            if st.button(f"❌ Missed", key=f"missed_{i}"):
+                                if 'medication_log' not in st.session_state:
+                                    st.session_state.medication_log = []
+                                st.session_state.medication_log.append({
+                                    "medication": med['medication'],
+                                    "timestamp": str(datetime.now()),
+                                    "status": "missed",
+                                    "user": st.session_state.username
+                                })
+                                st.warning("Medication recorded as missed.")
+                                st.rerun()
 
+# -------------------------
+# Cognitive Assessment & Memory Games
+# -------------------------
+def cognitive_assessment():
+    st.title("🧠 Cognitive Assessment")
+    st.write("Simple games to track cognitive function and memory")
+    
+    tab1, tab2, tab3 = st.tabs(["🎯 Memory Test", "🔤 Word Recall", "📊 Results"])
+    
+    with tab1:
+        st.subheader("🎯 Memory Card Game")
+        
+        if 'memory_game_started' not in st.session_state:
+            st.session_state.memory_game_started = False
+            st.session_state.memory_cards = ['A', 'B', 'C', 'D', 'A', 'B', 'C', 'D']
+            st.session_state.memory_selected = []
+            st.session_state.memory_matches = 0
+            st.session_state.memory_attempts = 0
+        
+        if not st.session_state.memory_game_started:
+            st.info("""
+            *Memory Game Instructions:*
+            - Remember the positions of matching pairs
+            - Click cards to flip them
+            - Find all matching pairs
+            - Your score and time will be recorded
+            """)
+            if st.button("Start Memory Game"):
+                st.session_state.memory_game_started = True
+                st.session_state.game_start_time = datetime.now()
+                st.rerun()
+        else:
+            # Display memory game grid
+            st.write("Find the matching pairs!")
+            cols = st.columns(4)
+            
+            for i in range(8):
+                with cols[i % 4]:
+                    if i in st.session_state.memory_selected:
+                        st.success(f"Card {i+1}: {st.session_state.memory_cards[i]}")
+                    else:
+                        if st.button(f"Card {i+1}", key=f"card_{i}"):
+                            st.session_state.memory_selected.append(i)
+                            st.session_state.memory_attempts += 1
+                            st.rerun()
+            
+            # Check for matches
+            if len(st.session_state.memory_selected) == 2:
+                idx1, idx2 = st.session_state.memory_selected
+                if st.session_state.memory_cards[idx1] == st.session_state.memory_cards[idx2]:
+                    st.session_state.memory_matches += 1
+                    st.success("🎉 Match found!")
+                else:
+                    st.error("❌ No match, try again!")
+                
+                # Reset selection after delay
+                time.sleep(1)
+                st.session_state.memory_selected = []
+                st.rerun()
+            
+            # Game completion
+            if st.session_state.memory_matches == 4:
+                end_time = datetime.now()
+                time_taken = (end_time - st.session_state.game_start_time).seconds
+                st.balloons()
+                st.success(f"""
+                🎉 Game Completed!
+                - Time: {time_taken} seconds
+                - Attempts: {st.session_state.memory_attempts}
+                - Score: {(8/st.session_state.memory_attempts)*100:.1f}%
+                """)
+                
+                # Save results
+                cognitive_data = {
+                    "test_type": "memory_game",
+                    "score": (8/st.session_state.memory_attempts)*100,
+                    "time_taken": time_taken,
+                    "attempts": st.session_state.memory_attempts,
+                    "timestamp": str(datetime.now()),
+                    "user": st.session_state.username
+                }
+                
+                if 'cognitive_results' not in st.session_state:
+                    st.session_state.cognitive_results = []
+                st.session_state.cognitive_results.append(cognitive_data)
+                
+                if st.button("Play Again"):
+                    st.session_state.memory_game_started = False
+                    st.rerun()
+    
+    with tab2:
+        st.subheader("🔤 Word Recall Test")
+        
+        if 'word_test_started' not in st.session_state:
+            st.session_state.word_test_started = False
+            st.session_state.words_to_remember = ["Apple", "River", "Mountain", "Book", "Sun"]
+            st.session_state.recalled_words = []
+        
+        if not st.session_state.word_test_started:
+            st.info("""
+            *Word Recall Test:*
+            - Memorize these 5 words for 30 seconds
+            - Then type as many as you can remember
+            - This tests short-term memory
+            """)
+            st.warning("*Words to remember:* " + ", ".join(st.session_state.words_to_remember))
+            
+            if st.button("Start 30-second memorization"):
+                st.session_state.word_test_started = True
+                st.session_state.test_start_time = datetime.now()
+                st.rerun()
+        else:
+            elapsed = (datetime.now() - st.session_state.test_start_time).seconds
+            time_left = 30 - elapsed
+            
+            if time_left > 0:
+                st.warning(f"⏰ Time left: {time_left} seconds")
+                st.info("Memorize these words: " + ", ".join(st.session_state.words_to_remember))
+            else:
+                st.subheader("Time's up! Type the words you remember:")
+                
+                recalled = st.text_area("Enter words separated by commas")
+                
+                if st.button("Submit Recall"):
+                    recalled_words = [word.strip() for word in recalled.split(",") if word.strip()]
+                    correct_words = [word for word in recalled_words if word in st.session_state.words_to_remember]
+                    score = (len(correct_words) / len(st.session_state.words_to_remember)) * 100
+                    
+                    st.success(f"""
+                    *Recall Results:*
+                    - Words remembered: {len(correct_words)}/5
+                    - Score: {score:.1f}%
+                    - Correct: {', '.join(correct_words) if correct_words else 'None'}
+                    """)
+                    
+                    # Save results
+                    word_data = {
+                        "test_type": "word_recall",
+                        "score": score,
+                        "words_remembered": len(correct_words),
+                        "timestamp": str(datetime.now()),
+                        "user": st.session_state.username
+                    }
+                    
+                    if 'cognitive_results' not in st.session_state:
+                        st.session_state.cognitive_results = []
+                    st.session_state.cognitive_results.append(word_data)
+                    
+                    if st.button("Take Test Again"):
+                        st.session_state.word_test_started = False
+                        st.rerun()
+    
+    with tab3:
+        st.subheader("📊 Cognitive Test History")
+        
+        if 'cognitive_results' in st.session_state:
+            user_results = [r for r in st.session_state.cognitive_results 
+                           if r.get('user') == st.session_state.username]
+            
+            if not user_results:
+                st.info("No test results yet. Complete some cognitive tests!")
+            else:
+                # Convert to DataFrame for display
+                results_df = pd.DataFrame(user_results)
+                st.dataframe(results_df[['test_type', 'score', 'timestamp']])
+                
+                # Simple trend chart
+                if len(user_results) > 1:
+                    st.subheader("📈 Score Trend")
+                    trend_df = pd.DataFrame(user_results)
+                    trend_df['timestamp'] = pd.to_datetime(trend_df['timestamp'])
+                    trend_df = trend_df.sort_values('timestamp')
+                    
+                    fig, ax = plt.subplots(figsize=(10, 4))
+                    ax.plot(trend_df['timestamp'], trend_df['score'], marker='o', linewidth=2)
+                    ax.set_xlabel('Date')
+                    ax.set_ylabel('Score (%)')
+                    ax.set_title('Cognitive Test Performance Over Time')
+                    ax.grid(True, alpha=0.3)
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
 # -------------------------
 # NEW FEATURE 3: Stroke Risk Calculator
 # -------------------------
@@ -2252,10 +2529,10 @@ def render_appointment_portal():
             doctor = st.selectbox(
                 "Select Doctor",
                 [
-                    "Dr. Sathish (Neurologist, Apollo)",
-                    "Dr. Vigneshwaran (Radiologist, Fortis)",
-                    "Dr. Puviyarasan (Stroke Specialist, MIOT)",
-                    "Dr. Sanjeev (CT Analysis Expert, Kauvery)",
+                    "Dr. Ramesh (Neurologist, Apollo)",
+                    "Dr. Priya (Radiologist, Fortis)",
+                    "Dr. Kumar (Stroke Specialist, MIOT)",
+                    "Dr. Divya (CT Analysis Expert, Kauvery)",
                 ],
                 key="appt_doctor",
             )
