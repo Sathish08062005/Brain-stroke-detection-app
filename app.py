@@ -2233,13 +2233,7 @@ def render_vital_signs():
                     st.write(f"Blood Pressure: {vital['systolic_bp']}/{vital['diastolic_bp']} mmHg")
                     st.write(f"Oxygen Saturation: {vital['oxygen_saturation']}%")
                     if vital.get('notes'):
-                        st.write(f"Notes: {vital['notes']}"
-# Remove button
-            if st.button("Remove Vital Record", key=f"remove_vital_{i}"):
-                st.session_state.vital_signs.pop(i)
-                save_data_to_file()
-                st.success("Vital record removed!")
-                st.rerun())
+                        st.write(f"Notes: {vital['notes']}")
 
 # -------------------------
 # Doctor Appointment Portal (User Side)
