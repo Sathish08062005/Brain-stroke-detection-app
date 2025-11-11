@@ -21,11 +21,11 @@ st.markdown("""
 <style>
 /* Change all text in the app */
 * {
-    font-family: 'Arial', sans-serif !important;
+    font-family: 'Aptos Display (Headings)', sans-serif !important;
 }
 /* Main app container */
 .stApp {
-    font-family: 'Arial', sans-serif;
+    font-family: 'Aptos Display (Headings)', sans-serif;
 }
 /* Headers */
 h1, h2, h3, h4, h5, h6 {
@@ -33,19 +33,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 /* Sidebar */
 .css-1d391kg, .css-1lcbmhc {
-    font-family: 'Arial', sans-serif !important;
+    font-family: 'Aptos Display (Headings)', sans-serif !important;
 }
 /* Buttons and inputs */
 .stButton>button, .stTextInput>div>div>input, .stSelectbox>div>div>select {
-    font-family: 'Arial', sans-serif !important;
+    font-family: 'Aptos Display (Headings)', sans-serif !important;
 }
 </style>
 """, unsafe_allow_html=True)
 # ================== BACKEND FONT SETTINGS ==================
-plt.rcParams['font.family'] = 'Arial'
+plt.rcParams['font.family'] = 'Aptos Display (Headings)'
 plt.rcParams['font.size'] = 12
-sns.set(font='Arial')
-sns.set_style("whitegrid", {'font.family': 'Arial', 'font.size': 12})
+sns.set(font='Aptos Display (Headings)')
+sns.set_style("whitegrid", {'font.family': 'Aptos Display (Headings)', 'font.size': 12})
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -2558,10 +2558,10 @@ def render_appointment_portal():
             doctor = st.selectbox(
                 "Select Doctor",
                 [
-                    "Dr. Ramesh (Neurologist, Apollo)",
-                    "Dr. Priya (Radiologist, Fortis)",
-                    "Dr. Kumar (Stroke Specialist, MIOT)",
-                    "Dr. Divya (CT Analysis Expert, Kauvery)",
+                    "Dr. Sathish (Neurologist, Apollo)",
+                    "Dr. Vigneshwaran (Radiologist, Fortis)",
+                    "Dr. Puviyarasan (Stroke Specialist, MIOT)",
+                    "Dr. Sanjeev (CT Analysis Expert, Kauvery)",
                 ],
                 key="appt_doctor",
             )
