@@ -17,7 +17,6 @@ import base64
 import time
 from datetime import datetime, timedelta
 
-================== FRONTEND FONT SETTINGS ==================
 st.markdown("""
 <style>
 /* Change all text in the app */
