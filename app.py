@@ -21,11 +21,11 @@ st.markdown("""
 <style>
 /* Change all text in the app */
 * {
-    font-family: 'Aptos Display (Headings)', sans-serif !important;
+    font-family: 'nyala', sans-serif !important;
 }
 /* Main app container */
 .stApp {
-    font-family: 'Aptos Display (Headings)', sans-serif;
+    font-family: 'nyala', sans-serif;
 }
 /* Headers */
 h1, h2, h3, h4, h5, h6 {
@@ -33,19 +33,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 /* Sidebar */
 .css-1d391kg, .css-1lcbmhc {
-    font-family: 'Aptos Display (Headings)', sans-serif !important;
+    font-family: 'nyala', sans-serif !important;
 }
 /* Buttons and inputs */
 .stButton>button, .stTextInput>div>div>input, .stSelectbox>div>div>select {
-    font-family: 'Aptos Display (Headings)', sans-serif !important;
+    font-family: 'nyala', sans-serif !important;
 }
 </style>
 """, unsafe_allow_html=True)
 # ================== BACKEND FONT SETTINGS ==================
-plt.rcParams['font.family'] = 'Aptos Display (Headings)'
+plt.rcParams['font.family'] = 'nyala'
 plt.rcParams['font.size'] = 12
-sns.set(font='Aptos Display (Headings)')
-sns.set_style("whitegrid", {'font.family': 'Aptos Display (Headings)', 'font.size': 12})
+sns.set(font='nyala')
+sns.set_style("whitegrid", {'font.family': 'nyala', 'font.size': 12})
 
 # SIMPLE BACKGROUND FALLBACK
 try:
