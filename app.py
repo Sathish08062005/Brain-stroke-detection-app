@@ -2508,7 +2508,7 @@ else:
         render_user_app()
 
 # -------------------------
-# Footer with "created by Sathish"
+# Footer with "Created By Sathish"
 # -------------------------
 st.markdown(
     """
@@ -2518,7 +2518,7 @@ st.markdown(
         bottom: 0;
         right: 0;
         padding: 10px;
-        color: #FF69B4;
+        color: #87CEEB;
         font-size: 14px;
         font-weight: bold;
         background-color: transparent;
@@ -2526,7 +2526,7 @@ st.markdown(
     }
     </style>
     <div class="footer">
-        created by Sathish
+        Created By Sathish
     </div>
     """,
     unsafe_allow_html=True
