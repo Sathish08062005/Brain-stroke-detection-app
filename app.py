@@ -19,14 +19,14 @@ from datetime import datetime, timedelta
 
 # Google Fonts
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Georgia:wght@400;600&family=Montserrat:wght@700&display=swap" rel="stylesheet">
 """, unsafe_allow_html=True)
 
 # Streamlit UI font styling
 st.markdown("""
     <style>
     html, body, [class*="css"]  {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', sans-serif;
         font-size: 16px;
     }
     h1, h2, h3, h4, h5, h6 {
@@ -35,7 +35,7 @@ st.markdown("""
         color: #2C3E50;
     }
     .stButton button {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', sans-serif;
         font-size: 15px;
         font-weight: 600;
         background-color: #0072B2;
@@ -46,8 +46,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Matplotlib / Seaborn font settings
-plt.rcParams['font.family'] = 'Poppins'
-sns.set_style("whitegrid", {'font.family': ['Poppins'], 'font.size': 12})
+plt.rcParams['font.family'] = 'Georgia'
+sns.set_style("whitegrid", {'font.family': ['Georgia'], 'font.size': 12})
 # SIMPLE BACKGROUND FALLBACK
 try:
     with open("2.jpg", "rb") as f:
