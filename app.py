@@ -17,39 +17,37 @@ import base64
 import time
 from datetime import datetime, timedelta
 
-# ================== FRONTEND FONT SETTINGS ==================
+# Google Fonts
 st.markdown("""
-<style>
-/* Change all text in the app */
-* {
-    font-family: 'arial', sans-serif !important;
-}
-/* Main app container */
-.stApp {
-    font-family: 'arial', sans-serif;
-}
-/* Headers */
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Georgia', serif !important;
-}
-/* Sidebar */
-.css-1d391kg, .css-1lcbmhc {
-    font-family: 'arial', sans-serif !important;
-}
-/* Buttons and inputs */
-.stButton>button, .stTextInput>div>div>input, .stSelectbox>div>div>select {
-    font-family: 'arial', sans-serif !important;
-}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Montserrat:wght@700&display=swap" rel="stylesheet">
 """, unsafe_allow_html=True)
 
-# ================== BACKEND FONT SETTINGS ==================
-plt.rcParams['font.family'] = 'arial'
-plt.rcParams['font.size'] = 12
-sns.set(font='arial')
-sns.set_style("whitegrid", {'font.family': 'arial', 'font.size': 12})
+# Streamlit UI font styling
+st.markdown("""
+    <style>
+    html, body, [class*="css"]  {
+        font-family: 'Poppins', sans-serif;
+        font-size: 16px;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        color: #2C3E50;
+    }
+    .stButton button {
+        font-family: 'Poppins', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        background-color: #0072B2;
+        color: white;
+        border-radius: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-
+# Matplotlib / Seaborn font settings
+plt.rcParams['font.family'] = 'Poppins'
+sns.set_style("whitegrid", {'font.family': ['Poppins'], 'font.size': 12})
 # SIMPLE BACKGROUND FALLBACK
 try:
     with open("2.jpg", "rb") as f:
