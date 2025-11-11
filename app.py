@@ -17,37 +17,58 @@ import base64
 import time
 from datetime import datetime, timedelta
 
-# Google Fonts
+import streamlit as st
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# ================== FRONTEND FONT SETTINGS ==================
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Georgia:wght@400;600&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+<style>
+/* Global text font */
+html, body, [class*="css"] {
+    font-family: 'Nyala', sans-serif !important;
+}
+
+/* Main app container */
+.stApp {
+    font-family: 'Nyala', sans-serif !important;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Georgia', serif !important;
+    font-weight: bold;
+    color: #2C3E50;
+}
+
+/* Sidebar text */
+section[data-testid="stSidebar"] {
+    font-family: 'Nyala', sans-serif !important;
+}
+
+/* Buttons and Inputs */
+.stButton button, 
+.stTextInput input, 
+.stSelectbox select, 
+.stDateInput input {
+    font-family: 'Nyala', sans-serif !important;
+    font-size: 15px;
+}
+</style>
 """, unsafe_allow_html=True)
 
-# Streamlit UI font styling
-st.markdown("""
-    <style>
-    html, body, [class*="css"]  {
-        font-family: 'Georgia', sans-serif;
-        font-size: 16px;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 700;
-        color: #2C3E50;
-    }
-    .stButton button {
-        font-family: 'Georgia', sans-serif;
-        font-size: 15px;
-        font-weight: 600;
-        background-color: #0072B2;
-        color: white;
-        border-radius: 10px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# ================== BACKEND FONT SETTINGS ==================
+plt.rcParams['font.family'] = 'Nyala'
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.titlesize'] = 14
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
 
-# Matplotlib / Seaborn font settings
-plt.rcParams['font.family'] = 'Georgia'
-sns.set_style("whitegrid", {'font.family': ['Georgia'], 'font.size': 12})
+sns.set(font='Nyala')
+sns.set_style("whitegrid", {'font.family': ['Nyala'], 'font.size': 12})
+
+
 # SIMPLE BACKGROUND FALLBACK
 try:
     with open("2.jpg", "rb") as f:
