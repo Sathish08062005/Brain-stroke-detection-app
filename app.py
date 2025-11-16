@@ -21,9 +21,89 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# ================== FRONTEND FONT SETTINGS ==================
+# ================== CUSTOM LOGIN PORTAL CSS ==================
 st.markdown("""
 <style>
+/* Custom Login Portal Styling */
+.login-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    padding: 40px 35px;
+    max-width: 420px;
+    margin: 50px auto;
+    text-align: center;
+}
+
+.login-title {
+    color: #2c3e50;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 30px;
+    font-family: 'Georgia', serif;
+}
+
+.login-input {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: 2px solid #e1e8ed;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.login-input:focus {
+    border-color: #3498db;
+    background: white;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.login-checkbox {
+    display: flex;
+    align-items: center;
+    margin: 15px 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.login-checkbox input {
+    margin-right: 8px;
+}
+
+.login-link {
+    color: #3498db;
+    text-decoration: none;
+    font-size: 14px;
+    margin: 15px 0;
+    display: block;
+}
+
+.login-link:hover {
+    text-decoration: underline;
+}
+
+.login-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
 /* Global text font */
 html, body, [class*="css"] {
     font-family: 'Nyala', sans-serif !important;
@@ -67,7 +147,6 @@ plt.rcParams['ytick.labelsize'] = 10
 
 sns.set(font='Nyala')
 sns.set_style("whitegrid", {'font.family': ['Nyala'], 'font.size': 12})
-
 
 # SIMPLE BACKGROUND FALLBACK
 try:
@@ -858,7 +937,8 @@ def ensure_state():
     # ... rest of existing code ...
 
 # And add the file persistence at the top with other file definitions:
-PROGRESS_FILE = "progress_data.json"# -------------------------
+PROGRESS_FILE = "progress_data.json"
+
 # -------------------------
 # Medical Reminder Program
 # -------------------------
@@ -1264,6 +1344,7 @@ def ensure_state():
 
 # Add the file definition at top with other files:
 MEDICATION_REMINDERS_FILE = "medication_reminders.json"
+
 # NEW FEATURE 5: Emergency SOS System
 # -------------------------
 def emergency_sos():
@@ -1327,6 +1408,7 @@ def emergency_sos():
     - Inform emergency responders about stroke symptoms
     - Note time when symptoms started
     """)
+
 # -------------------------
 # Enhanced Emergency SOS with Telegram Location
 # -------------------------
@@ -1749,6 +1831,14 @@ def ensure_state():
         st.session_state.exercise_log = []
     if "emergency_contacts" not in st.session_state:
         st.session_state.emergency_contacts = []
+    if "progress_data" not in st.session_state:
+        st.session_state.progress_data = load_progress_from_file()
+    if "recovery_goals" not in st.session_state:
+        st.session_state.recovery_goals = []
+    if "medication_reminders" not in st.session_state:
+        st.session_state.medication_reminders = load_medication_reminders()
+    if "medication_log" not in st.session_state:
+        st.session_state.medication_log = []
 
 ensure_state()
 
@@ -1810,24 +1900,47 @@ def import_users_json(file_bytes):
         return False, f"Import failed: {e}"
 
 # -------------------------
-# UI: Login
+# UI: Login Portal (Updated to match your image)
 # -------------------------
 def render_login():
-    st.title("🔐 Login Portal")
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
-    colA, colB = st.columns([1, 1])
-    with colA:
+    st.markdown("""
+    <div class="login-container">
+        <div class="login-title">Username</div>
+        <input type="text" class="login-input" placeholder="Enter your username">
+        <div class="login-checkbox">
+            <input type="checkbox" id="remember">
+            <label for="remember">Remember me</label>
+        </div>
+        <a href="#" class="login-link">Folder Password?</a>
+        <button class="login-button">LOGIN</button>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Actual login functionality
+    st.markdown("---")
+    st.subheader("🔐 Login to NeuroNexusAI")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        username = st.text_input("Username", key="login_username")
+        password = st.text_input("Password", type="password", key="login_password")
+        
         if st.button("Login", use_container_width=True, key="login_btn"):
             if login(username, password):
                 st.success("Login successful ✅")
                 st.rerun()
             else:
                 st.error("❌ Invalid Username or Password")
-    with colB:
-        st.caption("No registration here. Users must be created by the admin.")
     
-
+    with col2:
+        st.info("""
+        **Demo Accounts:**
+        - **Admin:** Sathish / Praveenasathish
+        - **User:** ziva / ziva123
+        
+        *Note: New users must be created by admin*
+        """)
 
 # -------------------------
 # Admin Dashboard
