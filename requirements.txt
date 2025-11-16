@@ -6,7 +6,7 @@ opencv-python-headless
 pillow
 requests
 gdown
-seaborn
 matplotlib
 pandas
 scikit-learn
+seaborn
