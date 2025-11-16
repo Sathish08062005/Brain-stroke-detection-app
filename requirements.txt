@@ -1,8 +1,12 @@
 streamlit
-tensorflow-cpu==2.11.0
+tensorflow
+keras
+numpy
 opencv-python-headless
-numpy==1.23.5
 pillow
-scikit-learn
-matplotlib
+requests
 gdown
+seaborn
+matplotlib
+pandas
+scikit-learn
