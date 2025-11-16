@@ -17,6 +17,9 @@ import base64
 import time
 from datetime import datetime, timedelta
 
+import streamlit as st
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # ================== FRONTEND FONT SETTINGS ==================
 st.markdown("""
@@ -67,15 +70,11 @@ sns.set_style("whitegrid", {'font.family': ['Nyala'], 'font.size': 12})
 
 
 # SIMPLE BACKGROUND FALLBACK
-
 try:
-    image_path = os.path.join(os.path.dirname(__file__), "static", "2.jpg")
-
-    with open(image_path, "rb") as f:
+    with open("2.jpg", "rb") as f:
         img_data = f.read()
-
     b64_encoded = base64.b64encode(img_data).decode()
-
+    
     st.markdown(
         f"""
         <style>
@@ -94,6 +93,7 @@ try:
     )
 except Exception as e:
     st.sidebar.warning(f"Background not loaded: {e}")
+
 # -------------------------
 # Users & Appointments file for persistence
 # -------------------------
