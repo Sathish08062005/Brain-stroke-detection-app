@@ -72,7 +72,7 @@ sns.set_style("whitegrid", {'font.family': ['Nyala'], 'font.size': 12})
 
 # SIMPLE BACKGROUND FALLBACK
 try:
-    with open("static/2.jpg", "rb") as f:
+    with open("/static/2.jpg", "rb") as f:
         img_data = f.read()
     b64_encoded = base64.b64encode(img_data).decode()
     
