@@ -67,13 +67,15 @@ sns.set_style("whitegrid", {'font.family': ['Nyala'], 'font.size': 12})
 
 
 # SIMPLE BACKGROUND FALLBACK
-try:
-image_path = os.path.join(os.path.dirname(__file__), "static", "2.jpg")
 
-with open(image_path, "rb") as f:
-    img_data = f.read()
+try:
+    image_path = os.path.join(os.path.dirname(__file__), "static", "2.jpg")
+
+    with open(image_path, "rb") as f:
+        img_data = f.read()
+
     b64_encoded = base64.b64encode(img_data).decode()
-    
+
     st.markdown(
         f"""
         <style>
@@ -92,7 +94,6 @@ with open(image_path, "rb") as f:
     )
 except Exception as e:
     st.sidebar.warning(f"Background not loaded: {e}")
-
 # -------------------------
 # Users & Appointments file for persistence
 # -------------------------
