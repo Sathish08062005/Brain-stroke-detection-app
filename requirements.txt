@@ -1,11 +1,10 @@
 streamlit
 tensorflow==2.15.0
-numpy
 opencv-python-headless
+numpy
 pillow
-gdown
 matplotlib
-scikit-learn
-pandas
 seaborn
-plotly
+scikit-learn
+gdown
+requests
