@@ -18,9 +18,7 @@ import base64
 import time
 from datetime import datetime, timedelta
 
-import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 
 # ================== FRONTEND FONT SETTINGS ==================
 st.markdown("""
